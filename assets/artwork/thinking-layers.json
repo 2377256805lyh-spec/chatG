@@ -1,0 +1,24 @@
+{
+  "opencv": "5.0.0",
+  "method": "separate arm foreground from body; repair hidden areas with retained generated plate",
+  "source": "https://github.com/lisiyao21/AnimeInterp",
+  "note": "借鉴分区域匹配的思路，未使用该项目模型或代码。",
+  "sources_sha256": {
+    "clean-body-aligned.png": "0d1c1056f3dd783839adb89ced135dc7679b02196e283409410438aad6983052",
+    "clean-body-generated.png": "022a80b129158347f35a0a0a42fd23ecff0d417db1e9ec256a4039e9642289b8",
+    "pose-00.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41",
+    "pose-01.png": "54c9193f4c49b18c5fdb56d338aac471b4a476af12c7a436041da11be4f4b9dd",
+    "pose-02.png": "29049d7e4c2ade1732476330bddd67c4503a74a030dc54dac5d63ca078e8241e",
+    "pose-03.png": "4d04cc1ad9e2bb8b99da1629456948b1201247e82ccb76d053644220177f06dc",
+    "pose-04.png": "dc7b29d43d24df71ddf2482ffb3c874fabaed4260ec99cf30554ff5b0dbcdab7",
+    "pose-05.png": "e60b01dfffc1b4fbe189bd1a751a6e80a79d80025c8904b3de94f7e3018ba9ac",
+    "pose-06.png": "3e862b5977840a5ad7509c0d3a1fcc4ad2bdb102a4854b9de1786161872ac904",
+    "pose-07.png": "831f811629c95c875445ca9998e18eec9474e3d4e0e5de3cecd9bb09e0904479",
+    "pose-08.png": "ed12256e2c63da2d0f9781ca08bea69ec869a2b5d69580b59a086b4be73b13a2",
+    "arm-regions.json": "4e92e2c7112601edf101e6bb47dae3dd52f406deb0c1552e7f824dd01e556c04"
+  },
+  "atlases_sha256": {
+    "thinking-arms.png": "8e403dd0a6ad0638eeb5b3b14d5c951980e974a946b20e9a6fcbd84703c8dc52",
+    "thinking-backdrops.png": "23b61df9b014e87273381dd972336313faf61df5f5d91d225d09632bc19a9655"
+  }
+}

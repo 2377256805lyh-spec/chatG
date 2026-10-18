@@ -1,65 +1,77 @@
 # 小G
 
-一个陪你学习的白发龙娘 Q 版 Windows 桌面挂件，支持动作互动、鼠标注视和本地角色配音。
+一个陪你学习的白发龙娘 Q 版 Windows 桌面挂件，支持动作互动、鼠标注视、花饰短句气泡和本地角色配音。
 
-## 功能
+## 互动方式
 
-- 单击跳跃；双击依次播放踮脚、思考、摇头、沮丧、等待和检查等动作。
-- 拖动时朝移动方向奔跑，鼠标靠近头部时转头注视。
-- 互动时随机显示短句，并播放对应的 12 段预制配音。
-- 右键菜单可调整大小、置顶、音量和随 Codex 启动等设置。
+| 操作 | 反应 |
+|---|---|
+| 单击人物 | 约 280 毫秒内没有第二次点击时起跳 |
+| 双击人物 | 依次切换踮脚、思考、摇头、沮丧、等待、检查 |
+| 按住左右拖动 | 朝拖动方向奔跑，松手停止 |
+| 鼠标靠近头部 | 轻轻转头注视；离开时平顺回正 |
+| 累计互动 5～7 次 | 随机显示一句短句，并播放对应配音 |
+| 右键人物或通知区域图标 | 调整大小、置顶、语音、音量、启动联动和动作 |
 
-日常显示与配音播放在本机完成，不调用聊天模型。窗口位置、大小等个人设置保存在程序旁的 `settings.json`，该文件不提交到仓库。
+单击和双击各算一次互动，拖动不计数。气泡里的文字和配音对应，当前语录不会被连续点击打断。音量提供 25%、55%、80% 三档，只影响小G。
+
+现用配音采用确认后的清澈软萌声线，仅保留这一款。所有配音提前生成并嵌入程序；日常显示、互动、语录和声音播放均在本机完成，不发送聊天请求、不消耗模型额度。
+
+动作使用高清原画和预制过渡画面，转头另有细节位移数据；思考将手臂与身体分层，摇头保留颈部和衣领。画面目标为每秒 60 帧，实际流畅度受屏幕刷新率和系统负载影响。
 
 ## 下载与编译
 
-使用 64 位 Windows，需要 Git、Git LFS（Git Large File Storage，Git 大文件存储），以及系统中的 .NET Framework C# 编译器与 WPF（Windows Presentation Foundation，Windows 界面绘制框架）。
-
-在 PowerShell 中执行：
+使用 64 位 Windows，需要 Git、Git LFS（Git Large File Storage，Git 大文件存储），以及 Windows 的 .NET Framework C# 编译器与 WPF（Windows Presentation Foundation，Windows 界面绘制框架）。已有素材可直接编译，无需语音模型或 Python。
 
 ```powershell
 git clone https://github.com/2377256805lyh-spec/chatG.git
 Set-Location chatG
 git lfs install --local
 git lfs pull
-.\build.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\小G.exe
 ```
 
-如果 PowerShell 阻止运行构建脚本，可仅对本次构建使用：
+构建会校验转头、思考分层和配音素材；配音还会核对文本、顺序和文件哈希。随后将素材嵌入根目录的 `小G.exe`。动画帧包约 287 MB，使用 Git LFS 保存；若文件只有几行文字，请先运行 `git lfs pull`。
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
-```
+编译出的程序不提交到源码仓库。便携运行只需 `小G.exe`；更新时退出旧程序、替换可执行文件，并保留原来的 `settings.json`。
 
-构建会校验语录、配音顺序与文件哈希，然后将图片、动画和声音嵌入根目录的 `小G.exe`。已有素材可直接用于编译，无需下载语音模型。动画帧包约 287 MB，通过 Git LFS 保存；若本地文件只有几行文字，请先运行 `git lfs pull`。
+## 设置与启动
 
-## 使用
+窗口位置、大小、置顶、语音开关、音量等保存在程序旁的 `settings.json`，该个人设置文件不提交到仓库。找不到人物时，可从通知区域图标选择找回，或双击图标将人物移回主屏幕。
 
-运行编译得到的 `小G.exe`；人物和通知区域图标的右键菜单均提供设置与退出入口。双击通知区域图标可将小G移回主屏幕。
-
-开启“随桌面 Codex 启动”后，程序会在当前用户的 Windows 启动文件夹创建快捷方式，用隐藏等待进程检测桌面 Codex 窗口。此功能可在同一菜单关闭。
-
-更新正在使用的版本时，先退出旧程序，再替换可执行文件，并保留已有 `settings.json`。
+在右键菜单开启“随桌面 Codex 启动”后，程序在当前用户的 Windows 启动文件夹创建快捷方式，隐藏等待进程检测到桌面 Codex 窗口后打开小G。手动退出小G后，不会在同一次 Codex 打开期间反复拉起。可在同一菜单关闭此功能。
 
 ## 项目结构
 
 | 路径 | 内容 |
 |---|---|
-| `src/` | 9 个 C# 源文件与应用清单 |
-| `assets/` | 原画、角色图集、图标、动画帧包和配音 |
-| `scripts/make-voice.py` | 可选的角色配音制作脚本 |
+| `src/` | 10 个 C# 源文件与应用清单 |
+| `assets/artwork/` | 程序使用的高清动作图与思考分层图 |
+| `assets/gaze/` | 已对齐的转头原画和定位点 |
+| `assets/thinking/` | 思考原画、遮挡底图与手臂轮廓 |
+| `assets/voice/` | 唯一正式声线、12 段配音及制作记录 |
+| `assets/animation-frames.zip` | 预制动画帧包，使用 Git LFS |
+| `scripts/` | 可选的配音、转头和思考分层制作入口 |
 | `docs/` | 素材来源、第三方许可和动态预览 |
 | `build.ps1` | Windows 构建入口 |
 
-重新制作配音才需要 Qwen3-TTS、兼容的模型环境与 FFmpeg。制作脚本读取 `assets/voice/` 的声线记录和 `src/Main.cs` 的语录；具体依赖与参数见脚本开头说明。生成新配音后重新构建即可。
+## 可选的素材重制
 
-## 预览
+普通编译和日常运行不需要这些制作环境。
 
-[动作动态预览](docs/previews/小G-动作动态预览.gif) · [鼠标转头动态预览](docs/previews/小G-转头动态预览.gif)
+- `scripts/make-voice.py`：使用保留的 `assets/voice/reference.wav` 和声音设计记录制作全部语录。需要 Qwen3-TTS 与兼容模型环境，具体依赖见脚本开头。现用声线以确认样本的自然节奏为准，重制时使用 `--tempo 1`；调整节奏才需要 FFmpeg。
+- `scripts/make-gaze.py`：从 `assets/gaze/` 生成转头位移文件和校验清单。
+- `scripts/make-thinking-layers.py`：从 `assets/thinking/` 生成手臂和身体遮挡底图。
+
+后两项需要 NumPy、Pillow 与 OpenCV。声音制作和素材重制完成后需重新构建程序。
+
+## 动态预览
+
+[动作预览](docs/previews/小G-动作动态预览.gif) · [转头预览](docs/previews/小G-转头动态预览.gif) · [颈部与思考分层修复](docs/previews/小G-颈部与思考修复预览.gif)
 
 ## 素材来源
 
-角色原始参考来自 [fywdy/chatgpt-chibi-pets](https://github.com/fywdy/chatgpt-chibi-pets)。本项目是非官方同人创作，与 OpenAI 等品牌方没有官方关联。
+角色参考来自 [fywdy/chatgpt-chibi-pets](https://github.com/fywdy/chatgpt-chibi-pets)。本项目是非官方同人创作，与 OpenAI 等品牌方没有官方关联。原美术素材及改编需遵守署名与非商业使用条件，详见 [素材说明](docs/ASSET-SOURCES.md) 和 [原项目许可](docs/licenses/fywdy/)。
 
-原美术素材及其改编需遵守署名与非商业使用条件。完整来源、修改说明和许可见 [素材说明](docs/ASSET-SOURCES.md) 与 [原项目许可](docs/licenses/fywdy/)。配音为基于角色描述生成的合成声音，模型与生成记录保留在配音清单中。
+声音是为该角色制作的合成声线，不声称复刻现实人物。声音样本来源、去沙处理、生成模型与各句校验值保存在 `assets/voice/` 中。

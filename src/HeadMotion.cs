@@ -1,11 +1,13 @@
 using System;
+using System.IO;
+using System.Reflection;
 
 namespace XiaoGDesktop
 {
     // 使用原画的侧脸和俯仰姿势补帧；固定身体，避免用整块平移冒充转头。
     internal sealed class HeadMotion
     {
-        private const int W = 192, H = 208, MotionHeight = 144;
+        private const int W = 192, MotionHeight = 144;
         private readonly byte[] neutral, reference;
         private readonly byte[][] poses = new byte[16][];
         private readonly MotionPair[] around = new MotionPair[16];
@@ -13,11 +15,39 @@ namespace XiaoGDesktop
         internal HeadMotion(byte[] rest, byte[][] originals, byte[] highRest, byte[][] highOriginals)
         {
             reference = rest; neutral = highRest;
-            byte[][] meshes = new byte[16][];
             for (int i = 0; i < 16; i++)
-                meshes[i] = Attach(originals[i], highOriginals[i], out poses[i]);
+                Attach(originals[i], highOriginals[i], out poses[i]);
+            float[][] flow = LoadFlow();
             for (int i = 0; i < 16; i++)
-                around[i] = new MotionPair(meshes[i], meshes[(i + 1) % 16], reference);
+                around[i] = new MotionPair(flow[i * 2], flow[i * 2 + 1], neutral, poses[i], poses[(i + 1) % 16]);
+        }
+
+        private static float[][] LoadFlow()
+        {
+            using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("gaze-flow.bin"))
+            {
+                if (stream == null) throw new InvalidDataException("缺少转头细节位移。");
+                using (BinaryReader reader = new BinaryReader(stream))
+                {
+                    if (reader.ReadUInt32() != 0x32484758 || reader.ReadInt32() != W
+                        || reader.ReadInt32() != MotionHeight || reader.ReadInt32() != 32
+                        || stream.Length != 16 + 32 * W * MotionHeight * 2 * sizeof(float))
+                        throw new InvalidDataException("转头细节位移格式不正确。");
+                    float[][] flow = new float[32][];
+                    for (int i = 0; i < flow.Length; i++)
+                    {
+                        flow[i] = new float[W * MotionHeight * 2];
+                        for (int p = 0; p < flow[i].Length; p++)
+                        {
+                            float value = reader.ReadSingle();
+                            if (float.IsNaN(value) || float.IsInfinity(value) || Math.Abs(value) > 48)
+                                throw new InvalidDataException("转头细节位移超出有效范围。");
+                            flow[i][p] = value;
+                        }
+                    }
+                    return flow;
+                }
+            }
         }
 
         internal byte[] Render(int direction, int strength)
@@ -43,7 +73,7 @@ namespace XiaoGDesktop
             return result;
         }
 
-        private byte[] Attach(byte[] original, byte[] highOriginal, out byte[] high)
+        private void Attach(byte[] original, byte[] highOriginal, out byte[] high)
         {
             byte[] neutral = this.reference;
             // 用衣领中央的小区域找位置，保留头部相对脖子的朝向和下巴变化。
@@ -66,20 +96,6 @@ namespace XiaoGDesktop
                     if (error < best) { best = error; offsetX = dx; offsetY = dy; }
                 }
             double[] reference = HairColor(neutral), source = HairColor(original);
-            byte[] result = (byte[])neutral.Clone();
-            for (int y = 0; y < MotionHeight; y++)
-                for (int x = 0; x < W; x++)
-                {
-                    double weight = HeadWeight(x, y);
-                    int p = (y * W + x) * 4;
-                    double alpha = Sample(original, x + offsetX, y + offsetY, 3);
-                    for (int c = 0; c < 4; c++)
-                    {
-                        double value = c == 3 ? alpha : Sample(original, x + offsetX, y + offsetY, c);
-                        if (c < 3) value = Math.Max(0, Math.Min(alpha, value + (reference[c] - source[c]) * alpha / 255.0));
-                        result[p + c] = Blend(neutral[p + c], value, weight);
-                    }
-                }
             high = (byte[])this.neutral.Clone();
             for (int y = 0; y < MotionHeight * SourceArtwork.Scale; y++)
                 for (int x = 0; x < SourceArtwork.Width; x++)
@@ -95,7 +111,6 @@ namespace XiaoGDesktop
                         high[p + c] = Blend(this.neutral[p + c], value, weight);
                     }
                 }
-            return result;
         }
 
         private static double[] HairColor(byte[] image)
@@ -129,14 +144,6 @@ namespace XiaoGDesktop
             return (byte)Math.Max(0, Math.Min(255, Math.Round(a + (b - a) * amount)));
         }
 
-        private static double Sample(byte[] image, double x, double y, int channel)
-        {
-            if (x < 0 || y < 0 || x >= W - 1 || y >= H - 1) return 0;
-            int ix = (int)x, iy = (int)y, p = (iy * W + ix) * 4 + channel;
-            double tx = x - ix, ty = y - iy;
-            return (image[p] * (1 - tx) + image[p + 4] * tx) * (1 - ty) + (image[p + W * 4] * (1 - tx) + image[p + W * 4 + 4] * tx) * ty;
-        }
-
         private static double SampleHigh(byte[] image, double x, double y, int channel)
         {
             int width = SourceArtwork.Width, height = SourceArtwork.Height;
@@ -151,26 +158,49 @@ namespace XiaoGDesktop
             private readonly Point[] first, second, rest;
             private readonly int[][] triangles;
 
-            internal MotionPair(byte[] a, byte[] b, byte[] neutral)
+            internal MotionPair(float[] a, float[] b, byte[] restImage, byte[] firstImage, byte[] secondImage)
             {
-                first = Mesh(a); second = Mesh(b); rest = Mesh(neutral);
+                // 每3个原图像素放一个对应点，龙角、发饰、眼睑和下巴都有独立对应位置。
+                const int step = 3, columns = 65, rows = 49;
+                first = new Point[columns * rows]; second = new Point[first.Length]; rest = new Point[first.Length];
+                for (int y = 0; y < rows; y++)
+                    for (int x = 0; x < columns; x++)
+                    {
+                        int px = Math.Min(W - 1, x * step), py = Math.Min(MotionHeight - 1, y * step);
+                        int i = y * columns + x, p = (py * W + px) * 2;
+                        double weight = HeadWeight(px, py);
+                        first[i] = new Point(px, py);
+                        rest[i] = new Point(px + a[p] * weight, py + a[p + 1] * weight);
+                        second[i] = new Point(px + b[p] * weight, py + b[p + 1] * weight);
+                    }
                 var entries = new System.Collections.Generic.List<int[]>();
-                int[][] face = {
-                    new int[] {0,1,3}, new int[] {1,4,3}, new int[] {1,2,4}, new int[] {2,5,4},
-                    new int[] {3,4,6}, new int[] {4,7,6}, new int[] {4,5,7}, new int[] {5,8,7},
-                    new int[] {6,7,9}, new int[] {7,8,9}
-                };
-                entries.AddRange(face);
-                int[] rim = {0,1,2,5,8,9,6,3};
-                for (int i = 0; i < 8; i++)
-                {
-                    int next = (i + 1) % 8;
-                    entries.Add(new int[] {rim[i],rim[next],10+next});
-                    entries.Add(new int[] {rim[i],10+next,10+i});
-                    entries.Add(new int[] {10+i,10+next,18+next});
-                    entries.Add(new int[] {10+i,18+next,18+i});
-                }
+                for (int y = 0; y < rows - 1; y++)
+                    for (int x = 0; x < columns - 1; x++)
+                    {
+                        int i = y * columns + x;
+                        foreach (int[] triangle in new int[][] {
+                            new int[] { i, i + 1, i + columns },
+                            new int[] { i + 1, i + columns + 1, i + columns } })
+                        {
+                            // 三张原画都透明的网格不必逐像素绘制；边缘留一个取样像素的余量。
+                            if (HasPixels(restImage, rest, triangle) || HasPixels(firstImage, first, triangle)
+                                || HasPixels(secondImage, second, triangle)) entries.Add(triangle);
+                        }
+                    }
                 triangles = entries.ToArray();
+            }
+
+            private static bool HasPixels(byte[] image, Point[] mesh, int[] triangle)
+            {
+                Point a = mesh[triangle[0]], b = mesh[triangle[1]], c = mesh[triangle[2]];
+                int width = SourceArtwork.Width, scale = SourceArtwork.Scale;
+                int left = Math.Max(0, (int)Math.Floor(Math.Min(a.X, Math.Min(b.X, c.X)) * scale) - 1);
+                int right = Math.Min(width - 1, (int)Math.Ceiling(Math.Max(a.X, Math.Max(b.X, c.X)) * scale) + 1);
+                int top = Math.Max(0, (int)Math.Floor(Math.Min(a.Y, Math.Min(b.Y, c.Y)) * scale) - 1);
+                int bottom = Math.Min(SourceArtwork.Height - 1, (int)Math.Ceiling(Math.Max(a.Y, Math.Max(b.Y, c.Y)) * scale) + 1);
+                for (int y = top; y <= bottom; y++)
+                    for (int x = left; x <= right; x++) if (image[(y * width + x) * 4 + 3] != 0) return true;
+                return false;
             }
 
             internal byte[] Morph(byte[] neutral, byte[] a, byte[] b, double amount, double strength)
@@ -178,10 +208,13 @@ namespace XiaoGDesktop
                 Point[] target = new Point[first.Length];
                 for (int i = 0; i < first.Length; i++)
                     target[i] = Interpolate(rest[i], Interpolate(first[i], second[i], amount), strength);
-                // 位置继续补帧，纹理只取较近的一张原画；混合不同画法会叠出龙角、发饰残影。
-                byte[] texture = strength < 0.5 ? neutral : amount < 0.5 ? a : b;
-                Point[] textureMesh = strength < 0.5 ? rest : amount < 0.5 ? first : second;
+                // 三张原画先各自对齐到同一个中间姿势，再连续交接细节。
+                // 直接在0.5处换纹理，即使网格位置连续，龙角和发丝仍会突然跳变。
+                double restWeight = 1 - strength, firstWeight = strength * (1 - amount), secondWeight = strength * amount;
+                byte[] restPixel = new byte[4], firstPixel = new byte[4], secondPixel = new byte[4];
                 byte[] result = (byte[])neutral.Clone();
+                // 先清空旧头部，防止轮廓移开后在未绘制区域留下待机头部。
+                Array.Clear(result, 0, SourceArtwork.Width * MotionHeight * SourceArtwork.Scale * 4);
                 int width = SourceArtwork.Width, scale = SourceArtwork.Scale;
                 foreach (int[] triangle in triangles)
                 {
@@ -193,154 +226,40 @@ namespace XiaoGDesktop
                     int maxX = Math.Min(width-1,(int)Math.Ceiling(Math.Max(pa.X,Math.Max(pb.X,pc.X))*scale));
                     int minY = Math.Max(0,(int)Math.Floor(Math.Min(pa.Y,Math.Min(pb.Y,pc.Y))*scale));
                     int maxY = Math.Min(MotionHeight*scale-1,(int)Math.Ceiling(Math.Max(pa.Y,Math.Max(pb.Y,pc.Y))*scale));
+                    double stepU = (pb.Y - pc.Y) / (divisor * scale), stepV = (pc.Y - pa.Y) / (divisor * scale);
                     for (int y = minY; y <= maxY; y++)
-                        for (int x = minX; x <= maxX; x++)
+                    {
+                        double px = (minX + .5) / scale - .5, py = (y + .5) / scale - .5;
+                        double u = ((pb.Y-pc.Y)*(px-pc.X)+(pc.X-pb.X)*(py-pc.Y))/divisor;
+                        double v = ((pc.Y-pa.Y)*(px-pc.X)+(pa.X-pc.X)*(py-pc.Y))/divisor;
+                        for (int x = minX; x <= maxX; x++, u += stepU, v += stepV)
                         {
-                            double px = (x + 0.5) / scale - 0.5, py = (y + 0.5) / scale - 0.5;
-                            double u = ((pb.Y-pc.Y)*(px-pc.X)+(pc.X-pb.X)*(py-pc.Y))/divisor;
-                            double v = ((pc.Y-pa.Y)*(px-pc.X)+(pa.X-pc.X)*(py-pc.Y))/divisor;
                             double w = 1-u-v;
                             if (u < -0.000001 || v < -0.000001 || w < -0.000001) continue;
-                            double sx = textureMesh[ia].X*u+textureMesh[ib].X*v+textureMesh[ic].X*w;
-                            double sy = textureMesh[ia].Y*u+textureMesh[ib].Y*v+textureMesh[ic].Y*w;
-                            SourceArtwork.Sample(texture, width, SourceArtwork.Height, (sx + 0.5) * scale - 0.5, (sy + 0.5) * scale - 0.5, result, (y*width+x)*4);
+                            if (restWeight > 0) SamplePose(neutral, rest, ia, ib, ic, u, v, w, restPixel);
+                            if (firstWeight > 0) SamplePose(a, first, ia, ib, ic, u, v, w, firstPixel);
+                            if (secondWeight > 0) SamplePose(b, second, ia, ib, ic, u, v, w, secondPixel);
+                            int output = (y * width + x) * 4;
+                            for (int c = 0; c < 4; c++)
+                                result[output + c] = (byte)(.5 + restPixel[c] * restWeight
+                                    + firstPixel[c] * firstWeight + secondPixel[c] * secondWeight);
                         }
+                    }
                 }
                 return result;
+            }
+
+            private static void SamplePose(byte[] texture, Point[] mesh, int ia, int ib, int ic, double u, double v, double w, byte[] pixel)
+            {
+                double sx = (mesh[ia].X * u + mesh[ib].X * v + mesh[ic].X * w + .5) * SourceArtwork.Scale - .5;
+                double sy = (mesh[ia].Y * u + mesh[ib].Y * v + mesh[ic].Y * w + .5) * SourceArtwork.Scale - .5;
+                pixel[0] = pixel[1] = pixel[2] = pixel[3] = 0;
+                SourceArtwork.Sample(texture, SourceArtwork.Width, SourceArtwork.Height, sx, sy, pixel, 0);
             }
 
             private static Point Interpolate(Point a, Point b, double amount)
             {
                 return new Point(a.X+(b.X-a.X)*amount,a.Y+(b.Y-a.Y)*amount);
-            }
-
-            private static Point[] Mesh(byte[] image)
-            {
-                Point[] eyes = Eyes(image);
-                Point left = eyes[0], right = eyes[1];
-                double eyeY = (left.Y+right.Y)/2, centerX = (left.X+right.X)/2;
-                Point chin = new Point(centerX,118);
-                for (int y = 100; y < 128; y++)
-                {
-                    int count = 0, totalX = 0;
-                    for (int x = 58; x < 134; x++)
-                        if (Skin(image,(y*W+x)*4) && Math.Abs(x-centerX) < 32) {count++; totalX+=x;}
-                    if (count >= 16) chin = new Point(totalX/(double)count,y+1);
-                }
-                double sum = 0, sumX = 0, sumY = 0;
-                for (int y = (int)eyeY+3; y < (int)chin.Y-1; y++)
-                    for (int x = (int)centerX-10; x <= (int)centerX+10; x++)
-                    {
-                        int p = (y*W+x)*4;
-                        double weight = image[p+1] < 155 && image[p+2] < 210 ? Math.Max(0,image[p+2]-image[p+1]-20)*Math.Max(0,image[p+2]-image[p]-20) : 0;
-                        sum+=weight; sumX+=x*weight; sumY+=y*weight;
-                    }
-                Point mouth = sum > 0 ? new Point(sumX/sum,sumY/sum) : new Point(centerX,eyeY+(chin.Y-eyeY)*0.65);
-                mouth.Y = Math.Max(eyeY+3,Math.Min(chin.Y-2,mouth.Y));
-                double cheekLeft = left.X-8, cheekRight = right.X+8;
-                int row = (int)Math.Round(mouth.Y);
-                for (int x = 58; x < 134; x++)
-                    if (Skin(image,(row*W+x)*4) && Math.Abs(x-centerX) < 32)
-                    {cheekLeft=Math.Min(cheekLeft,x); cheekRight=Math.Max(cheekRight,x);}
-                double forehead = eyeY-24;
-                Point leftSide = Side(image, true), rightSide = Side(image, false);
-                return new Point[] {
-                    new Point(cheekLeft-2,forehead),new Point(centerX,forehead),new Point(cheekRight+2,forehead),
-                    left,new Point(centerX,eyeY),right,
-                    new Point(cheekLeft,mouth.Y),mouth,new Point(cheekRight,mouth.Y),chin,
-                    Tip(image,46,76),Tip(image,80,116),Tip(image,116,146),rightSide,
-                    new Point(124,133),new Point(95,133),new Point(66,133),leftSide,
-                    new Point(0,0),new Point(95,0),new Point(191,0),new Point(191,90),
-                    new Point(191,143),new Point(95,143),new Point(0,143),new Point(0,90)
-                };
-            }
-
-            private static Point Tip(byte[] image,int start,int end)
-            {
-                for (int y = 20; y < 76; y++)
-                {
-                    int sum = 0, count = 0;
-                    for (int x = start; x < end; x++)
-                        if (image[(y*W+x)*4+3]>175) {sum+=x;count++;}
-                    if (count>0) return new Point(sum/(double)count,y);
-                }
-                return new Point((start+end)/2.0,48);
-            }
-
-            private static Point Side(byte[] image,bool left)
-            {
-                int edge = left ? 75 : 116;
-                for (int y = 90; y < 102; y++)
-                    for (int x = left ? 36 : 116; x < (left ? 76 : 155); x++)
-                        if (image[(y*W+x)*4+3]>175) edge = left ? Math.Min(edge,x) : Math.Max(edge,x);
-                return new Point(edge,96);
-            }
-
-            private static bool Skin(byte[] image, int p)
-            {
-                return image[p+3]>230 && image[p+2]-image[p+1]>12 && image[p+2]-image[p]>15 && image[p+1]>140;
-            }
-
-            private static Point[] Eyes(byte[] image)
-            {
-                bool[] mask = new bool[W*128];
-                double skinX = 0, skinY = 0, skinCount = 0;
-                for (int y = 72; y < 122; y++)
-                    for (int x = 58; x < 134; x++)
-                    {
-                        int p = (y*W+x)*4;
-                        mask[y*W+x] = image[p+3]>220 && image[p]>110 && image[p+1]>60 && image[p]-image[p+2]>20 && image[p]-image[p+1]>28;
-                        if (Skin(image,p)) {skinX+=x; skinY+=y; skinCount++;}
-                    }
-                skinX = skinCount>0 ? skinX/skinCount : 94;
-                skinY = skinCount>0 ? skinY/skinCount : 110;
-                var candidates = new System.Collections.Generic.List<EyeRegion>();
-                int[] queue = new int[mask.Length];
-                for (int y = 72; y < 122; y++)
-                    for (int x = 58; x < 134; x++)
-                    {
-                        int start = y*W+x;
-                        if (!mask[start]) continue;
-                        int read = 0, count = 1, totalX = 0, totalY = 0, minX = x, maxX = x, minY = y, maxY = y;
-                        queue[0] = start; mask[start] = false;
-                        while (read < count)
-                        {
-                            int p = queue[read++], px = p%W, py = p/W;
-                            totalX+=px; totalY+=py;
-                            minX=Math.Min(minX,px); maxX=Math.Max(maxX,px); minY=Math.Min(minY,py); maxY=Math.Max(maxY,py);
-                            int[] neighbors = {p-1,p+1,p-W,p+W};
-                            foreach (int next in neighbors)
-                                if (next>=0 && next<mask.Length && mask[next]) {mask[next]=false; queue[count++]=next;}
-                        }
-                        if (count>=3 && count<200 && maxX-minX<22 && maxY-minY<24)
-                            candidates.Add(new EyeRegion(new Point(totalX/(double)count,totalY/(double)count),count));
-                    }
-                double best = -1;
-                Point left = new Point(80,103), right = new Point(108,103);
-                for (int i = 0; i < candidates.Count; i++)
-                    for (int j = i+1; j < candidates.Count; j++)
-                    {
-                        EyeRegion a = candidates[i], b = candidates[j];
-                        double dx = Math.Abs(a.Center.X-b.Center.X), dy = a.Center.Y-b.Center.Y;
-                        if (dx<12 || dx>42 || Math.Abs(dy)>9) continue;
-                        double cx = (a.Center.X+b.Center.X)/2-skinX;
-                        double cy = (a.Center.Y+b.Center.Y)/2-skinY+8;
-                        double score = (a.Area+b.Area)*Math.Exp(-dy*dy/64-cx*cx/160-cy*cy/500);
-                        if (score>best)
-                        {
-                            best=score;
-                            left=a.Center.X<b.Center.X?a.Center:b.Center;
-                            right=a.Center.X<b.Center.X?b.Center:a.Center;
-                        }
-                    }
-                return new Point[] {left,right};
-            }
-
-            private struct EyeRegion
-            {
-                internal Point Center;
-                internal int Area;
-                internal EyeRegion(Point center,int area) {Center=center;Area=area;}
             }
 
             private struct Point

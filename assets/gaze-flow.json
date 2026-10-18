@@ -1,0 +1,28 @@
+{
+  "format": "XGH2",
+  "opencv": "5.0.0",
+  "grid_step": 3,
+  "algorithm": "DIS optical flow after landmark alignment",
+  "source": "https://github.com/opencv/opencv",
+  "images_sha256": {
+    "pose-00.png": "4b3ff196f2851708241280218bc848fdcd4f3bae0c580cb18ab8416350c4dd69",
+    "pose-01.png": "956c4f678429bc6c5087e000becc3593c112f817c47efdc54255a71e2fda3384",
+    "pose-02.png": "c220504724c3ca17a1736ca83f386995ef2a2a0ed5bc3348db24e3c1d288b095",
+    "pose-03.png": "bde2136d4f757a6e3973ca53e3524919733c4fe21782892945cda130aa4ce60c",
+    "pose-04.png": "826eafd8ad33c89992ebc43952b3a1903e778792032f626c547cc8af305af7d7",
+    "pose-05.png": "eb2e9decbf05ca6c8b68bd413d4d34a611dbcff02949361ed4b74b6cbad92aab",
+    "pose-06.png": "cdcbb405db155ef4a534a6f08024fc2af57d255d45da40da06fb7dbda78e2678",
+    "pose-07.png": "92cadd82f8b9c5941f7d0b1c8554abe478d8dc67a16da2dafb8cdaff3a8e2f7d",
+    "pose-08.png": "3e7e2059702cc893d410aa2051b86a1837c53ed92d6b0b9c418814aded33c772",
+    "pose-09.png": "7441e2f123139c55709e5ceca45cc91880cf30fa2e797e29e8eea8b8ef34acdb",
+    "pose-10.png": "85e1b9df002b4b88a7143411c94d9d3525ea02b0ef9ada9f99c2b2ec648ec20c",
+    "pose-11.png": "3e3fee73de21b40ba9acb181e957366af0e8c8eff40b1e5b1c45c55b07eb8f05",
+    "pose-12.png": "8de63b5cf61cc37c536123ebe0edd0df318752c0ff1846060d50fc37546f4725",
+    "pose-13.png": "97d888ff009e0bce50a944e899760a3cb28a049d721ade994ae04be109ea2855",
+    "pose-14.png": "7a1e006c09fb1a3c41b4ae4fbe5c52e71842cbc9c29d402f866cbfa81a6eee94",
+    "pose-15.png": "ac346f46ed68de0b5bc825355f3cf56ab5a7b4a2c31c74fc285307c63a98e0eb",
+    "pose-16.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41"
+  },
+  "landmarks_sha256": "8425f5757b6dcaa6ec6940d736db2bba965eba4c0c148d35db9a1b11d03b7291",
+  "sha256": "0b624cf8a273ee269bcd50d6007fdddc97bb93d6c9ec12904dfdb79c6f6d49e4"
+}

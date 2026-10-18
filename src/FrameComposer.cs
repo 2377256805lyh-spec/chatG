@@ -9,7 +9,7 @@ namespace XiaoGDesktop
     internal sealed class FrameComposer
     {
         private const int W = 192, H = 208, PoseColumns = 32;
-        internal const int DirectionCount = 128, StrengthSteps = 12;
+        internal const int DirectionCount = 512, StrengthSteps = 48;
         internal readonly BitmapSource[,] Frames = new BitmapSource[11, PoseColumns];
         private readonly byte[,][] raw = new byte[11, PoseColumns][];
         private readonly BitmapSource[] blinks = new BitmapSource[3];
@@ -54,7 +54,7 @@ namespace XiaoGDesktop
                 byte[][] sequence = SourceArtwork.LoadSequence(row == 5 ? "failed-smooth" : "thinking-coordinated", raw[0, 0]);
                 for (int col = 0; col < sequence.Length; col++)
                 {
-                    Frames[row, col] = Bitmap(sequence[col]);
+                    Frames[row, col] = Bitmap(row == 7 ? GestureLayers.Pose(row, col) : sequence[col]);
                     raw[row, col] = Reduce(sequence[col]);
                 }
             }
@@ -135,9 +135,26 @@ namespace XiaoGDesktop
                 double sway = Math.Sin(elapsed * Math.PI * 2) * Math.Min(1, elapsed / .25) * Math.Min(1, (2.6 - elapsed) / .4);
                 // 比原来的2/3强度缩小约四分之一，节奏不变；连续补帧不跳级。
                 return Math.Abs(sway) < .000001 ? Frames[0, 0]
-                    : Bitmap(headMotion.RenderAmount(sway >= 0 ? DirectionCount / 4 : DirectionCount * 3 / 4, Math.Abs(sway) * .49));
+                    : StabilizeShake(Bitmap(headMotion.RenderAmount(sway >= 0 ? DirectionCount / 4 : DirectionCount * 3 / 4, Math.Abs(sway) * .49)));
             }
             return Frames[0, 0];
+        }
+
+        internal BitmapSource StabilizeShake(BitmapSource frame)
+        {
+            byte[] pixels = Pixels(frame);
+            int scale = SourceArtwork.Scale, width = SourceArtwork.Width;
+            // 下巴仍随头转动；下巴下面的颈部、衣领和胸前花结保持待机原画。
+            // 顶部留柔和过渡，两侧绕开长发，避免在整个脖子高度横切头发。
+            for (int y = 117 * scale; y < 134 * scale; y++)
+                for (int x = 76 * scale; x < 115 * scale; x++)
+                {
+                    double px = (x + .5) / scale, py = (y + .5) / scale;
+                    double weight = Ease((py - 117.5) / 2) * Ease((px - 76) / 6) * Ease((115 - px) / 6);
+                    int p = (y * width + x) * 4;
+                    for (int c = 0; c < 4; c++) pixels[p + c] = Mix(pixels[p + c], restPixels[p + c], weight);
+                }
+            return Bitmap(pixels);
         }
 
         internal BitmapSource Tiptoe(double elapsed)
@@ -223,7 +240,8 @@ namespace XiaoGDesktop
             strength = Math.Max(0, Math.Min(StrengthSteps, strength));
             direction = (direction % DirectionCount + DirectionCount) % DirectionCount;
             if (strength == 0) return Frames[0, 0];
-            int key = direction * (StrengthSteps + 1) + strength;
+            // 注视使用负键，方向加密后也不会与正键的动作补帧缓存相撞。
+            int key = -1 - direction * (StrengthSteps + 1) - strength;
             BitmapSource image;
             if (cache.TryGetValue(key, out image)) return image;
             return Remember(key, Bitmap(headMotion.Render(direction, strength)));

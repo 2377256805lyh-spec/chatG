@@ -1,14 +1,34 @@
 {
   "file": "reference.wav",
-  "text": "哼，小G才没有偷偷摸鱼呢。先自己想两分钟，好不好？学习也要棒棒哒！",
-  "instruct": "年轻、清甜、软萌的中文少女声线，音区中高，声音轻巧圆润、细腻明亮，具有适度幼态感，但不是真正的幼儿声音。发声自然松弛，略带轻柔气息和极轻微的鼻腔共鸣，咬字清晰但不过分字正腔圆。平时说话轻快、灵动，带一点呆萌与好奇；疑惑时轻轻停顿，句尾微微上扬；撒娇时音量降低、尾音柔和拉长；被调侃时表现出轻微傲娇，短暂提高音调、加快语速，但不尖叫；委屈时声音变轻，有细小的哼唧和气息变化；开心时清脆活泼、带自然笑意；认真解释问题时恢复专注清晰的语气。整体人设像一位聪明、贪吃、爱摸鱼、嘴硬心软的小龙女。强调自然情绪变化和角色一致性，避免机械朗读、过度夹嗓、尖锐假声、夸张鼻音、持续耳语和刻意卖萌。",
-  "sha256": "0d3aef0c5f74d60ae20048179aeea1442d795eb681afbe3bb39a4f8a3d24865b",
+  "voice": "小G·清澈软萌（去沙版）",
+  "text": "小G萌萌哒，学习也要棒棒哒。先自己想两分钟，小G陪你。今天也给努力的你一朵小紫花。",
+  "instruct": "年轻的中文女性声线，柔和的中音区，音高适中偏低，声线有适度厚度，圆润、干净、清晰。自然松弛地发声，喉部放松，用正常说话的本嗓，不用尖细假声，不捏嗓、不夹嗓、不发紧。带一点温柔笑意、清甜和Q版小龙女的呆萌感，轻松亲切地聊天。语速稍慢，音量舒适，气息平稳，不用过多气声，不要电音、颤音或夸张鼻音。句尾平稳收住或轻轻落下，不突然拔高，不尖叫、不刻意撒娇。声音年轻而自然，不成熟低沉，也不模仿幼儿。",
+  "sha256": "7b779403f1b11c6180ec4875f6d57c845db77a74157a7099371ca2eba4c86aaf",
+  "seconds": 9.3369,
   "model": "Qwen3-TTS-12Hz-1.7B-VoiceDesign",
   "source": "https://github.com/QwenLM/Qwen3-TTS",
-  "created_with": "本机离线声音设计",
-  "origin": "按用户完整角色声线描述，专门为小G生成的合成声音样本",
-  "seed": 8407,
   "model_source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-  "seconds": 6.83,
-  "model_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3"
+  "service_source": "https://huggingface.co/spaces/Qwen/Qwen3-TTS",
+  "service_code_revision": "6ae5dfa536c7109b33606b2332b8f0545d45f228",
+  "origin": "用户从试听中确认的第一款清软声线，经轻度去沙后作为唯一正式声线。",
+  "source_reference_sha256": "1eb9cb5423ed60b8a4211467f64bb6efb10a5a20f00bdf647ec965bd1a6575d5",
+  "reference_processing": {
+    "method": "noisereduce 3.0.3，轻度非平稳频谱降噪；1200Hz以下保护，1200至3000Hz渐变进入处理。",
+    "parameters": {
+      "stationary": false,
+      "prop_decrease": 0.42,
+      "time_constant_s": 1.0,
+      "freq_mask_smooth_hz": 500,
+      "time_mask_smooth_ms": 100,
+      "n_fft": 512,
+      "win_length": 512,
+      "hop_length": 128,
+      "use_torch": false
+    },
+    "gain": 1.006631275013079,
+    "source": "https://github.com/timsainb/noisereduce"
+  },
+  "pitch_shift": 0,
+  "tempo_shift": 1,
+  "created_with": "Qwen官方公开声音设计；选定样本经轻度去沙。"
 }

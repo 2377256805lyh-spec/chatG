@@ -1,125 +1,144 @@
 {
   "model": "Qwen3-TTS-12Hz-0.6B-Base",
   "model_revision": "5d83992436eae1d760afd27aff78a71d676296fc",
-  "voice": "小G·清甜自然的软萌少女声线",
+  "voice": "小G·清澈软萌（去沙版）",
   "reference": {
     "file": "reference.wav",
-    "text": "哼，小G才没有偷偷摸鱼呢。先自己想两分钟，好不好？学习也要棒棒哒！",
-    "instruct": "年轻、清甜、软萌的中文少女声线，音区中高，声音轻巧圆润、细腻明亮，具有适度幼态感，但不是真正的幼儿声音。发声自然松弛，略带轻柔气息和极轻微的鼻腔共鸣，咬字清晰但不过分字正腔圆。平时说话轻快、灵动，带一点呆萌与好奇；疑惑时轻轻停顿，句尾微微上扬；撒娇时音量降低、尾音柔和拉长；被调侃时表现出轻微傲娇，短暂提高音调、加快语速，但不尖叫；委屈时声音变轻，有细小的哼唧和气息变化；开心时清脆活泼、带自然笑意；认真解释问题时恢复专注清晰的语气。整体人设像一位聪明、贪吃、爱摸鱼、嘴硬心软的小龙女。强调自然情绪变化和角色一致性，避免机械朗读、过度夹嗓、尖锐假声、夸张鼻音、持续耳语和刻意卖萌。",
-    "sha256": "0d3aef0c5f74d60ae20048179aeea1442d795eb681afbe3bb39a4f8a3d24865b",
+    "voice": "小G·清澈软萌（去沙版）",
+    "text": "小G萌萌哒，学习也要棒棒哒。先自己想两分钟，小G陪你。今天也给努力的你一朵小紫花。",
+    "instruct": "年轻的中文女性声线，柔和的中音区，音高适中偏低，声线有适度厚度，圆润、干净、清晰。自然松弛地发声，喉部放松，用正常说话的本嗓，不用尖细假声，不捏嗓、不夹嗓、不发紧。带一点温柔笑意、清甜和Q版小龙女的呆萌感，轻松亲切地聊天。语速稍慢，音量舒适，气息平稳，不用过多气声，不要电音、颤音或夸张鼻音。句尾平稳收住或轻轻落下，不突然拔高，不尖叫、不刻意撒娇。声音年轻而自然，不成熟低沉，也不模仿幼儿。",
+    "sha256": "7b779403f1b11c6180ec4875f6d57c845db77a74157a7099371ca2eba4c86aaf",
+    "seconds": 9.3369,
     "model": "Qwen3-TTS-12Hz-1.7B-VoiceDesign",
     "source": "https://github.com/QwenLM/Qwen3-TTS",
-    "created_with": "本机离线声音设计",
-    "origin": "按用户完整角色声线描述，专门为小G生成的合成声音样本",
-    "seed": 8407,
     "model_source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
-    "seconds": 6.83,
-    "model_revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3"
+    "service_source": "https://huggingface.co/spaces/Qwen/Qwen3-TTS",
+    "service_code_revision": "6ae5dfa536c7109b33606b2332b8f0545d45f228",
+    "origin": "用户从试听中确认的第一款清软声线，经轻度去沙后作为唯一正式声线。",
+    "source_reference_sha256": "1eb9cb5423ed60b8a4211467f64bb6efb10a5a20f00bdf647ec965bd1a6575d5",
+    "reference_processing": {
+      "method": "noisereduce 3.0.3，轻度非平稳频谱降噪；1200Hz以下保护，1200至3000Hz渐变进入处理。",
+      "parameters": {
+        "stationary": false,
+        "prop_decrease": 0.42,
+        "time_constant_s": 1.0,
+        "freq_mask_smooth_hz": 500,
+        "time_mask_smooth_ms": 100,
+        "n_fft": 512,
+        "win_length": 512,
+        "hop_length": 128,
+        "use_torch": false
+      },
+      "gain": 1.006631275013079,
+      "source": "https://github.com/timsainb/noisereduce"
+    },
+    "pitch_shift": 0,
+    "tempo_shift": 1,
+    "created_with": "Qwen官方公开声音设计；选定样本经轻度去沙。"
   },
   "source": "https://github.com/QwenLM/Qwen3-TTS",
   "model_source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base",
   "pitch_ratio": 1.0,
+  "tempo_ratio": 1.0,
+  "tempo_processing": null,
   "seed_base": 8407,
   "format": "PCM WAV, mono, 24000 Hz, 16 bit",
   "clips": [
     {
       "file": "00.wav",
       "text": "小G萌萌哒，学习也要棒棒哒！",
-      "seconds": 3.1052,
-      "sha256": "a16ec24dd9be274140ea69132780c8fe48764e9fcb2170aeb637a2812a815d0d",
-      "source_seconds": 2.91,
-      "source_sha256": "ac06965ef92846b785c224da7ede4aee6d45041e813258eb9030fa9ba72c140c"
+      "seconds": 2.8172,
+      "source_seconds": 2.8172,
+      "source_sha256": "6b79d63d764789c6d64ea0c2651ae48b046ff1ea8a9700b4d4398ebc4f55faff",
+      "sha256": "6b79d63d764789c6d64ea0c2651ae48b046ff1ea8a9700b4d4398ebc4f55faff"
     },
     {
       "file": "01.wav",
       "text": "小G督促你学习哟～",
-      "seconds": 1.987,
-      "sha256": "9da2b3513b131f7c75e548b7e109683b41ef6b1ff2ef3520c0b62fb6fc113b12",
-      "source_seconds": 1.8694,
-      "source_sha256": "bc34cecd24c6db34ed8eef1f4669e8b044b92df90ef96f02c9ee89484530954a"
+      "seconds": 1.9627,
+      "source_seconds": 1.9627,
+      "source_sha256": "07d7c0b41d84d61f9f51f86eb1caef7a323730b706c32b69216d7a90db26e99b",
+      "sha256": "07d7c0b41d84d61f9f51f86eb1caef7a323730b706c32b69216d7a90db26e99b"
     },
     {
       "file": "02.wav",
       "text": "先自己想两分钟，小G陪你。",
-      "seconds": 2.8317,
-      "sha256": "8daeb45d768c1aaa1bc4f84e5379d6348a77512066260b13cdde88e2ead5037d",
-      "source_seconds": 2.6559,
-      "source_sha256": "5b7cdf80fb7c35a670e02cfa533a9cfeb857d2517cc369aa6f04dd05a2db90c6"
+      "seconds": 2.896,
+      "source_seconds": 2.896,
+      "source_sha256": "f9d2122f6d39d4e55d4890ad9a49cd80377d72724c4695eb36bbcd8de09d0f97",
+      "sha256": "f9d2122f6d39d4e55d4890ad9a49cd80377d72724c4695eb36bbcd8de09d0f97"
     },
     {
       "file": "03.wav",
       "text": "今天也一点点变厉害～",
-      "seconds": 2.0735,
-      "sha256": "da22acbfb6af0fd32f86e6773ccac4cfa6b17f536d0af4455b5ee9f67100fd51",
-      "source_seconds": 1.95,
-      "source_sha256": "9729439f128b83ac721454e76f2e43f050d3f6182e71ed9843ad15b0ec74effe"
+      "seconds": 1.9358,
+      "source_seconds": 1.9358,
+      "source_sha256": "74425c2eff4fadee8e1108a1dd5189dc71e60532350a61c72fbd97afaf182878",
+      "sha256": "74425c2eff4fadee8e1108a1dd5189dc71e60532350a61c72fbd97afaf182878"
     },
     {
       "file": "04.wav",
       "text": "摸摸结束，来学一个小知识吧。",
-      "seconds": 2.6753,
-      "sha256": "921e5c4ef46746967c7503a1564840312b1c613e38027f5f3f47cff738ee78e1",
-      "source_seconds": 2.51,
-      "source_sha256": "5744573ecf73528b77781e9bde9c191d214beb7951d609f410f136670cc97a7e"
+      "seconds": 2.565,
+      "source_seconds": 2.565,
+      "source_sha256": "7359c6c9fed98b6199972aa3e880c32edfb2a009196ff57ed9ade85b248a3a28",
+      "sha256": "7359c6c9fed98b6199972aa3e880c32edfb2a009196ff57ed9ade85b248a3a28"
     },
     {
       "file": "05.wav",
       "text": "喝口水，看看远处再继续～",
-      "seconds": 2.5893,
-      "sha256": "efd44eed2d6943989ce0ca0254bb7f2a2b2094237c718b5492c8ca0c1dfbc266",
-      "source_seconds": 2.43,
-      "source_sha256": "f31f35a7b97d6e28092a6c4bd31690d09d6cd0b3a6141cfcef2909729603ec99"
+      "seconds": 2.4925,
+      "source_seconds": 2.4925,
+      "source_sha256": "48ac8f11e0e724486987a6b8ed35107079ff82a9c754103f9f59aae61dce73d3",
+      "sha256": "48ac8f11e0e724486987a6b8ed35107079ff82a9c754103f9f59aae61dce73d3"
     },
     {
       "file": "06.wav",
       "text": "把为什么想明白，比只记住答案更厉害。",
-      "seconds": 3.4413,
-      "sha256": "3b5b58dd12b2ce7c40756fdcf849693430155094a78341ebf9f567c660a6690e",
-      "source_seconds": 3.2222,
-      "source_sha256": "2aec5c443955c911499ba2788138972a13e3e2224d1bdc81b4040421bcd8d5f7"
+      "seconds": 3.3604,
+      "source_seconds": 3.3604,
+      "source_sha256": "b1ccf10fdd8ef037f0aff060b657c1e9acf5d3ca39cb42cfff1fdb841543110d",
+      "sha256": "b1ccf10fdd8ef037f0aff060b657c1e9acf5d3ca39cb42cfff1fdb841543110d"
     },
     {
       "file": "07.wav",
       "text": "休息一下，再解决下一个小问题。",
-      "seconds": 3.0809,
-      "sha256": "875e050303ffe9c241617e5db5e4ae2aede84a17108adfdd017ed851a5b40ed7",
-      "source_seconds": 2.8872,
-      "source_sha256": "7976277192e7c74cced07beb310ffc0492de9b8457b95daa578e29c6317fa301"
+      "seconds": 2.6719,
+      "source_seconds": 2.6719,
+      "source_sha256": "730985299077b5a2556a27d15fd09f8883897f01e12b4ad06d8358a55d975da0",
+      "sha256": "730985299077b5a2556a27d15fd09f8883897f01e12b4ad06d8358a55d975da0"
     },
     {
       "file": "08.wav",
       "text": "今天也给努力的你一朵小紫花～",
-      "seconds": 2.6399,
-      "sha256": "903d7c567b7edfd02bbf6c299504d1e492d246d970a72d4ed3f35e1fa4f6a6b3",
-      "source_seconds": 2.4776,
-      "source_sha256": "fa5a455db3f246433f3d38e509096def7dd92acb79742f77b047fd5b441520ad"
+      "seconds": 2.5854,
+      "source_seconds": 2.5854,
+      "source_sha256": "59eb4d2cec8389bccc5b19a23cf21f3ca264a3c52a601b591697efdd5a5371c1",
+      "sha256": "59eb4d2cec8389bccc5b19a23cf21f3ca264a3c52a601b591697efdd5a5371c1"
     },
     {
       "file": "09.wav",
       "text": "先讲讲你的思路，小G认真听着呢。",
-      "seconds": 3.5292,
-      "sha256": "9d02a2d2983b8701750ccedd88af741cdd4becd59e517300c354206985868349",
-      "source_seconds": 3.3042,
-      "source_sha256": "b6dfb84b4fe7995527251cf3d6dd60339aec55a4113763140d3b1d883cb292f2"
+      "seconds": 3.3384,
+      "source_seconds": 3.3384,
+      "source_sha256": "90bde43d87e28c620a0636181c33664aed2a35cd52edbc07936949c8ff1d0ea9",
+      "sha256": "90bde43d87e28c620a0636181c33664aed2a35cd52edbc07936949c8ff1d0ea9"
     },
     {
       "file": "10.wav",
       "text": "卡住也没关系，拆成小步骤再来～",
-      "seconds": 2.6753,
-      "sha256": "19353b2c0c9ffeca8ba60422b0f850f505794206f939619fa368cdba509021a8",
-      "source_seconds": 2.51,
-      "source_sha256": "fcdcc1c1c53ed7498b83c54fe6a5d107c8a2fc93973293ef7f65139fcf26c4b2"
+      "seconds": 3.1622,
+      "source_seconds": 3.1622,
+      "source_sha256": "3baa6ebecd9a70a4ca2c1d36256da52e1ee51c912d0d5f149d17e174e3a3abb8",
+      "sha256": "3baa6ebecd9a70a4ca2c1d36256da52e1ee51c912d0d5f149d17e174e3a3abb8"
     },
     {
       "file": "11.wav",
       "text": "坐久啦，伸个懒腰再继续吧！",
-      "seconds": 2.5034,
-      "sha256": "c9f82cc35dff8ad98da3ae15f24e9bc0f6a72cd001e42f9c201fb4420c8ce9ce",
-      "source_seconds": 2.35,
-      "source_sha256": "acb81009d43823c23f58f7d028c930bc8f1337b88615701d9225738e28c84dab"
+      "seconds": 2.6846,
+      "source_seconds": 2.6846,
+      "source_sha256": "958258965666173528fd586530e93f2fbed88adae498350b218df2b2ef83f2f1",
+      "sha256": "958258965666173528fd586530e93f2fbed88adae498350b218df2b2ef83f2f1"
     }
-  ],
-  "tempo_ratio": 0.93,
-  "tempo_processing": "FFmpeg atempo",
-  "tempo_source": "https://ffmpeg.org/ffmpeg-filters.html#atempo"
+  ]
 }

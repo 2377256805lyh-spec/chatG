@@ -15,3 +15,9 @@
 /.vs/
 __pycache__/
 *.pyc
+
+# 素材制作的临时模型和试听候选
+/.voice-*/
+/models/
+/voice-candidates/
+/assets/voice-candidates/

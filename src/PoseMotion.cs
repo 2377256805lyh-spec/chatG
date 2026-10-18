@@ -8,6 +8,7 @@ namespace XiaoGDesktop
         private const int W = 192, H = 208;
         private readonly int Step, Columns, Rows;
         private readonly byte[] first, second;
+        private readonly byte[] firstBody, secondBody;
         private readonly Vector[] forward;
         private readonly Vector[] backward;
         private readonly Vector?[] firstHands, secondHands;
@@ -27,10 +28,15 @@ namespace XiaoGDesktop
             firstFace = coordinated ? GestureFace(a) : Face(a, out chin);
             secondFace = coordinated ? GestureFace(b) : Face(b, out chin);
             if (rowA == 7 && rowB == 7 && colA == 5 && colB == 6) secondFace = firstFace;
-            verticalOnly = Math.Abs(firstFace.Y - secondFace.Y) > 10;
+            verticalOnly = !coordinated && Math.Abs(firstFace.Y - secondFace.Y) > 10;
             for (int h = 0; h < firstHands.Length; h++)
-                if (firstHands[h].HasValue && secondHands[h].HasValue && Math.Abs(firstHands[h].Value.Y - secondHands[h].Value.Y) > 20) verticalOnly = true;
+                if (!coordinated && firstHands[h].HasValue && secondHands[h].HasValue && Math.Abs(firstHands[h].Value.Y - secondHands[h].Value.Y) > 20) verticalOnly = true;
             if (verticalOnly) return;
+            if (coordinated)
+            {
+                first = GestureLayers.Arm(rowA, colA); second = GestureLayers.Arm(rowB, colB);
+                firstBody = GestureLayers.Body(rowA, colA); secondBody = GestureLayers.Body(rowB, colB);
+            }
             forward = Match(a, b, firstHands, secondHands, firstFace, secondFace);
             if (coordinated)
             {
@@ -53,8 +59,8 @@ namespace XiaoGDesktop
 
         internal byte[] Render(double amount)
         {
-            if (amount <= 0) return first;
-            if (amount >= 1) return second;
+            if (amount <= 0) return coordinated ? ComposeBody((byte[])first.Clone(), 0) : first;
+            if (amount >= 1) return coordinated ? ComposeBody((byte[])second.Clone(), 1) : second;
             if (verticalOnly) return Vertical(amount);
             bool fromFirst = amount < 0.5;
             byte[] texture = fromFirst ? first : second;
@@ -85,7 +91,36 @@ namespace XiaoGDesktop
                         Triangle(texture, result, original, target, i + 1, i + Columns + 1, i + Columns);
                     }
             if (coordinated) RestoreFace(texture, result, fromFirst, amount);
-            return result;
+            return coordinated ? ComposeBody(result, amount) : result;
+        }
+
+        private byte[] ComposeBody(byte[] arm, double amount)
+        {
+            int scale = SourceArtwork.Scale, width = SourceArtwork.Width, height = SourceArtwork.Height;
+            double faceX = firstFace.X + (secondFace.X - firstFace.X) * amount;
+            double faceY = firstFace.Y + (secondFace.Y - firstFace.Y) * amount;
+            double chin = faceY + 16;
+            bool fromFirst = amount < .5;
+            byte[] body = fromFirst ? firstBody : secondBody;
+            Vector sourceFace = fromFirst ? firstFace : secondFace;
+            byte[] pixel = new byte[4];
+            // 身体只沿原来整张脸的位置轻微跟随；不再按手腕的位置局部拉扯衣服和翅膀。
+            for (int y = 0; y < height; y++)
+            {
+                double py = (y + .5) / scale - .5;
+                double weight = py <= chin ? 1 : Math.Max(0, (198 - py) / (198 - chin));
+                double dx = (sourceFace.X - faceX) * weight * scale, dy = (sourceFace.Y - faceY) * weight * scale;
+                for (int x = 0; x < width; x++)
+                {
+                    Array.Clear(pixel, 0, 4);
+                    SourceArtwork.Sample(body, width, height, x + dx, y + dy, pixel, 0);
+                    int p = (y * width + x) * 4;
+                    double through = 1 - arm[p + 3] / 255.0;
+                    for (int c = 0; c < 4; c++)
+                        arm[p + c] = (byte)Math.Min(255, arm[p + c] + pixel[c] * through + .5);
+                }
+            }
+            return arm;
         }
 
         private static void Triangle(byte[] texture, byte[] result, Vector[] original, Vector[] target, int ia, int ib, int ic)

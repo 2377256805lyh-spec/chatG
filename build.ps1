@@ -3,6 +3,16 @@ $framework = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
 $sourceFolder = Join-Path $PSScriptRoot 'src'
 $assetFolder = Join-Path $PSScriptRoot 'assets'
 $compiler = Join-Path $framework 'csc.exe'
+$gazeCatalog = Get-Content -LiteralPath (Join-Path $assetFolder 'gaze-flow.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ((Get-FileHash -LiteralPath (Join-Path $assetFolder 'gaze-flow.bin') -Algorithm SHA256).Hash -ine $gazeCatalog.sha256) {
+    throw '转头位移文件与清单不一致，请重新制作转头位移。'
+}
+$gestureCatalog = Get-Content -LiteralPath (Join-Path $assetFolder 'artwork/thinking-layers.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($asset in $gestureCatalog.atlases_sha256.PSObject.Properties) {
+    if ((Get-FileHash -LiteralPath (Join-Path (Join-Path $assetFolder 'artwork') $asset.Name) -Algorithm SHA256).Hash -ine $asset.Value) {
+        throw '思考分层原图与清单不一致，请重新制作分层。'
+    }
+}
 $arguments = @(
     '/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/codepage:65001',
     ('/out:' + (Join-Path $PSScriptRoot '小G.exe')),
@@ -10,6 +20,7 @@ $arguments = @(
     ('/win32icon:' + (Join-Path $assetFolder 'xiaog.ico')),
     ('/resource:' + (Join-Path $assetFolder 'xiaog-atlas.png') + ',xiaog-atlas.png'),
     ('/resource:' + (Join-Path $assetFolder 'xiaog.ico') + ',xiaog.ico'),
+    ('/resource:' + (Join-Path $assetFolder 'gaze-flow.bin') + ',gaze-flow.bin'),
     ('/reference:' + (Join-Path $framework 'WPF/PresentationFramework.dll')),
     ('/reference:' + (Join-Path $framework 'WPF/PresentationCore.dll')),
     ('/reference:' + (Join-Path $framework 'WPF/WindowsBase.dll')),
@@ -22,6 +33,7 @@ $arguments = @(
     (Join-Path $sourceFolder 'HeadMotion.cs'),
     (Join-Path $sourceFolder 'SourceArtwork.cs'),
     (Join-Path $sourceFolder 'PoseMotion.cs'),
+    (Join-Path $sourceFolder 'GestureLayers.cs'),
     (Join-Path $sourceFolder 'BubbleDesign.cs'),
     (Join-Path $sourceFolder 'VoiceClips.cs')
 )

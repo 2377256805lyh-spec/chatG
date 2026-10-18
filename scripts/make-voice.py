@@ -2,9 +2,10 @@
 
 依赖：qwen-tts==0.1.1、transformers==4.57.3、accelerate==1.12.0，
 以及兼容显卡的torch/torchaudio、numpy、soundfile、librosa等模型依赖。
-用法：python scripts/make-voice.py --models <Qwen3-TTS-12Hz-0.6B-Base目录>
+用法：python make-voice.py --models <Qwen3-TTS-12Hz-0.6B-Base目录>
 可用--output指定制作目录；12句全部完成后再替换正式素材并构建。
-声线采用assets/voice/reference.wav与assets/voice/voice-design.json中记录的合成角色样本。
+--reference-dir指定已确认的声线目录；该目录须包含reference.wav和voice-design.json。
+声线采用voice/reference.wav与voice/voice-design.json中记录的合成角色样本。
 加上--design-models <1.7B-VoiceDesign目录>可先按保存的描述重新制作声线样本。
 配音默认用FFmpeg保持音调放慢到93%；--ffmpeg指定工具，--tempo指定速度比例。
 """
@@ -75,11 +76,15 @@ def save_pcm(file, samples, rate):
 
 
 def main():
-    root = Path(__file__).resolve().parent.parent
+    script_folder = Path(__file__).resolve().parent
+    root = script_folder.parent if (script_folder.parent / "src" / "Main.cs").exists() else script_folder
+    voice = root / "assets" / "voice" if (root / "assets").exists() else root / "voice"
+    main_file = root / "src" / "Main.cs" if (root / "src").exists() else root / "Main.cs"
     parser = argparse.ArgumentParser(description="沿用小G合成角色声线，制作12句本地配音")
     parser.add_argument("--models", type=Path, required=True)
     parser.add_argument("--design-models", type=Path)
-    parser.add_argument("--output", type=Path, default=root / "assets" / "voice")
+    parser.add_argument("--output", type=Path, default=voice)
+    parser.add_argument("--reference-dir", type=Path, default=voice)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--tempo", type=float, default=0.93)
     parser.add_argument("--ffmpeg", type=Path)
@@ -91,9 +96,11 @@ def main():
         parser.error("放慢配音需要FFmpeg，请用--ffmpeg指定工具路径；--tempo 1可保留原速。")
     import torch
     from qwen_tts import Qwen3TTSModel
+    if args.device == "cpu":
+        torch.set_num_threads(min(8, os.cpu_count() or 1))
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    voice = root / "assets" / "voice"
+    voice = args.reference_dir.resolve()
     design = json.loads((voice / "voice-design.json").read_text(encoding="utf-8"))
     reference = voice / design["file"]
     if args.design_models is not None:
@@ -102,7 +109,8 @@ def main():
             dtype=torch.bfloat16 if args.device.startswith("cuda") else torch.float32,
             attn_implementation="sdpa",
         )
-        torch.manual_seed(design["seed"])
+        if design.get("seed") is not None:
+            torch.manual_seed(design["seed"])
         wavs, rate = design_model.generate_voice_design(
             text=design["text"], language="Chinese", instruct=design["instruct"], max_new_tokens=512,
         )
@@ -111,6 +119,9 @@ def main():
         revision_file = args.design_models / "source-revision.txt"
         design["model_revision"] = revision_file.read_text(encoding="utf-8").strip()
         design["created_with"] = "本机离线声音设计"
+        design["origin"] = "依据保留的角色描述在本机重新生成的声线。"
+        for field in ("voice", "reference_processing", "source_reference_sha256", "service_source", "service_code_revision"):
+            design.pop(field, None)
         (voice / "voice-design.json").write_text(json.dumps(design, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"角色声线样本 {design['seconds']:.2f}s 已生成", flush=True)
         del design_model, wavs
@@ -119,7 +130,7 @@ def main():
             torch.cuda.empty_cache()
     if hashlib.sha256(reference.read_bytes()).hexdigest() != design["sha256"]:
         raise ValueError("角色声音样本与记录不一致。")
-    block = re.search(r'string\[\] phrases\s*=\s*\{([\s\S]*?)\};', (root / "src" / "Main.cs").read_text(encoding="utf-8-sig"))
+    block = re.search(r'string\[\] phrases\s*=\s*\{([\s\S]*?)\};', main_file.read_text(encoding="utf-8-sig"))
     if block is None:
         raise ValueError("没有找到小G语录。")
     phrases = re.findall(r'"([^"\n]*)"', block.group(1))
@@ -152,7 +163,7 @@ def main():
     revision_file = args.models / "source-revision.txt"
     catalog = {
         "model": "Qwen3-TTS-12Hz-0.6B-Base", "model_revision": revision_file.read_text(encoding="utf-8").strip() if revision_file.exists() else None,
-        "voice": "小G·清甜自然的软萌少女声线", "reference": design,
+        "voice": design.get("voice", "小G·清甜自然的软萌少女声线"), "reference": design,
         "source": "https://github.com/QwenLM/Qwen3-TTS",
         "model_source": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base",
         "pitch_ratio": 1.0, "tempo_ratio": args.tempo, "tempo_processing": "FFmpeg atempo" if args.tempo != 1 else None,
