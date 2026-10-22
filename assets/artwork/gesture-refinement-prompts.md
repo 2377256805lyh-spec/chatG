@@ -4,8 +4,8 @@
 
 本次使用内置 image_gen 工具，新增两张1536×1024、4列×2行、透明背景原画。
 
-- 收手素材：`artwork/waving-return.png`。生成原图：`exec-0ac65e07-d506-42b1-8837-102de4b20cd9.png`。
-- 眼睑素材：`artwork/thinking-blink.png`。生成原图：`exec-223a1b9d-ae6a-4916-ab10-53caf1d4065f.png`。
+- 收手素材：`artwork/waving-return.png`。生成原图：`C:\Users\47354\.codex\generated_images\01a11549-0893-7713-8442-0d0dcdac42ff\exec-0ac65e07-d506-42b1-8837-102de4b20cd9.png`。
+- 眼睑素材：`artwork/thinking-blink.png`。生成原图：`C:\Users\47354\.codex\generated_images\01a11549-0893-7713-8442-0d0dcdac42ff\exec-223a1b9d-ae6a-4916-ab10-53caf1d4065f.png`。
 
 收手使用原来挥手结束姿势和挥手原画作参考；眼睑使用原来思考停留姿势作参考。参考单帧由v9备份中的程序直接导出，临时导出文件在收尾时清理。
 

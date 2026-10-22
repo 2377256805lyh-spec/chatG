@@ -1,0 +1,217 @@
+{
+  "sleepy": {
+    "duration": 3.3,
+    "exposures": [
+      {
+        "file": "00.png",
+        "ticks": 8
+      },
+      {
+        "file": "01.png",
+        "ticks": 6
+      },
+      {
+        "file": "02.png",
+        "ticks": 5
+      },
+      {
+        "file": "03.png",
+        "ticks": 5
+      },
+      {
+        "file": "04.png",
+        "ticks": 5
+      },
+      {
+        "file": "05.png",
+        "ticks": 5
+      },
+      {
+        "file": "06.png",
+        "ticks": 6
+      },
+      {
+        "file": "07.png",
+        "ticks": 6
+      },
+      {
+        "file": "08.png",
+        "ticks": 8,
+        "phase": "rub"
+      },
+      {
+        "file": "09.png",
+        "ticks": 10,
+        "phase": "rub"
+      },
+      {
+        "file": "10.png",
+        "ticks": 12,
+        "phase": "rub"
+      },
+      {
+        "file": "09.png",
+        "ticks": 10,
+        "phase": "rub"
+      },
+      {
+        "file": "08.png",
+        "ticks": 8,
+        "phase": "rub"
+      },
+      {
+        "file": "09.png",
+        "ticks": 10,
+        "phase": "rub"
+      },
+      {
+        "file": "10.png",
+        "ticks": 12,
+        "phase": "rub"
+      },
+      {
+        "file": "09.png",
+        "ticks": 10,
+        "phase": "rub"
+      },
+      {
+        "file": "08.png",
+        "ticks": 8,
+        "phase": "rub"
+      },
+      {
+        "file": "16.png",
+        "ticks": 6
+      },
+      {
+        "file": "17.png",
+        "ticks": 5
+      },
+      {
+        "file": "18.png",
+        "ticks": 4
+      },
+      {
+        "file": "19.png",
+        "ticks": 4
+      },
+      {
+        "file": "20.png",
+        "ticks": 5
+      },
+      {
+        "file": "02.png",
+        "ticks": 6
+      },
+      {
+        "file": "01.png",
+        "ticks": 7
+      },
+      {
+        "file": "22.png",
+        "ticks": 27
+      }
+    ]
+  },
+  "idea": {
+    "duration": 3.1,
+    "exposures": [
+      {
+        "file": "00.png",
+        "ticks": 6
+      },
+      {
+        "file": "01.png",
+        "ticks": 6
+      },
+      {
+        "file": "02.png",
+        "ticks": 5
+      },
+      {
+        "file": "03.png",
+        "ticks": 4
+      },
+      {
+        "file": "04.png",
+        "ticks": 4
+      },
+      {
+        "file": "05.png",
+        "ticks": 4
+      },
+      {
+        "file": "06.png",
+        "ticks": 5
+      },
+      {
+        "file": "07.png",
+        "ticks": 6
+      },
+      {
+        "file": "08.png",
+        "ticks": 4
+      },
+      {
+        "file": "09.png",
+        "ticks": 4
+      },
+      {
+        "file": "10.png",
+        "ticks": 5
+      },
+      {
+        "file": "11.png",
+        "ticks": 50
+      },
+      {
+        "file": "12.png",
+        "ticks": 6
+      },
+      {
+        "file": "13.png",
+        "ticks": 6
+      },
+      {
+        "file": "14.png",
+        "ticks": 5
+      },
+      {
+        "file": "15.png",
+        "ticks": 5
+      },
+      {
+        "file": "16.png",
+        "ticks": 6
+      },
+      {
+        "file": "17.png",
+        "ticks": 5
+      },
+      {
+        "file": "18.png",
+        "ticks": 4
+      },
+      {
+        "file": "19.png",
+        "ticks": 4
+      },
+      {
+        "file": "20.png",
+        "ticks": 5
+      },
+      {
+        "file": "21.png",
+        "ticks": 6
+      },
+      {
+        "file": "22.png",
+        "ticks": 7
+      },
+      {
+        "file": "23.png",
+        "ticks": 24
+      }
+    ]
+  }
+}

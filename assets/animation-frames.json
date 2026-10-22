@@ -1,0 +1,106 @@
+{
+  "format": 2,
+  "algorithm": "face and leg alignment / bidirectional DIS / signed-distance silhouettes; existing action samples retained",
+  "opencv": "4.13.0",
+  "source": "https://github.com/opencv/opencv",
+  "original_pack_sha256": "59885dae2522db9df195fde89d0cee2d89c88d0cffae977755f197dc94f90c40",
+  "poses_sha256": {
+    "failed-00.png": "b378e1dcf179e630ec4de52868dfd79287989ef8b7430c09d9b03866bccb504d",
+    "failed-01.png": "295d94a440e73f4e06ea6fe6c2a17e0ae82449362f3dabef345aa527b737097f",
+    "failed-02.png": "6b024004d9835f3a8643841a85acae0f729af70c8a4617c25aaef2df1f197d05",
+    "failed-03.png": "892894c9712eaf7ca5ffb1e40218506e035b952ab40b6799f7e18be831eaccf6",
+    "failed-04.png": "8b56993aa34ee3af9ebbeddd4dd9eab0c501215b26d08124e102d87e64c8a6fa",
+    "failed-05.png": "6927322532c649d59d2492e15a567e30d723fc1fd6e3285f0823fb0ac05404d9",
+    "failed-06.png": "6c7b48703daf883b9b7f0aee2cce052df17e532b2caeb1c78f211297aca86690",
+    "failed-07.png": "1cfdffc13d412c95488121b66f957f3063dd265948d03fc34895b30766a825c8",
+    "jump-00.png": "623f834b00aad0ca9eace4357002d7bb0fb2a1b823915e8a1b231e27daf18826",
+    "jump-01.png": "69834846e059d60fa73a834cee5c06753b46a0fde709ff9d533871a21a2ebb6e",
+    "jump-02.png": "50b5040929096875f6d610963db8f1ddc3692ac199d2edbf27892a0ce6675ea5",
+    "jump-03.png": "8d1e9b4b4118d80bdee305dd2833e4d871083b935acca8b52f23379c4b20748c",
+    "jump-04.png": "df08fb7cb6314966227c786daf499975900fc2e21d2abadf0823d7e435336bb9",
+    "neutral-00.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41",
+    "review-00.png": "d8b20292f7bd6b365c944b37eadb599557a66c8eecacc2ea29aa414eb61a3b71",
+    "review-01.png": "596c13fd375bb8decdeed698f4bd19ec881948e1b5f70486a8c02d91c2c2eeb2",
+    "review-02.png": "208792f8450c7554b1f62c1b0d129209477428117743314d9ca2faa5a3837306",
+    "review-03.png": "b41e1186b103c4f45d1bc43d06230acbaf60f0d439dd14b962f8f6392b8ad5b9",
+    "review-04.png": "3fd3612b09f59ca730dbd537200ce0d7faea3804464ae578dccc242c8bb5ca52",
+    "review-05.png": "757b06b1c63b1e42bc4fab40e76d1bcc22fb6fcc60a932f32a76ec9ae638dac8",
+    "run-right-00.png": "a7b204b1ab0b6e35e522a81923a4ddf3c8e92208fd3de72d62b9d18dfb7e3a8d",
+    "run-right-01.png": "538db7b8c58f8e77dbcfbb5832f4f9ae445f11c16d1ee70a0526e7710844c6c7",
+    "run-right-02.png": "211f6e603fbdb3b7d6d8e3e02bb886fff0434832cf565c6757734d75aa2f669c",
+    "run-right-03.png": "eac62dc25a0ad9e694303d920edbe6aaa6c1eb66f48fdc913c8c9e90915375ae",
+    "run-right-04.png": "6edf22300ab53119e787614eaff355abe306f7674703ae73a978152dfea06053",
+    "run-right-05.png": "6bf102ed71a9a50422557b5fd5a324160964775f32126f501754cc53936457e0",
+    "run-right-06.png": "d812d0eb67398ed2d9ca4460aa452861026bfe4367826c0c65c42abcb7fd973a",
+    "run-right-07.png": "1f79d8f180a392aa8a591472f234337217503a5d49061f68140faf22dc0dab31",
+    "waiting-00.png": "f9dd9fac671daa7d5401ffe944be0274f3b430df678dd91e5a3d2e15ce310196",
+    "waiting-01.png": "809f4f516bd90b44bfc7a6ec9ebe5918a18f11c09f0d8c8dd362ca6e60b1aea3",
+    "waiting-02.png": "0432cd2d1faa46b5e4fcf2c490d934390d77cdf87467d5f46cd329b5dff4f333",
+    "waiting-03.png": "bf89df805634b715d357a1397a96cc506a77006dc1cd10642ba1128e090d9df5",
+    "waiting-04.png": "b2fe824afc79acaf305929d0ca595d12622d9fb56120e5b2f60c70b45521508b",
+    "waiting-05.png": "0493e19967c24b5acfd8b32fd4482878f73029cea27d69967b3147f4ebb3f71c"
+  },
+  "preserved": [
+    "failed",
+    "jump",
+    "review",
+    "shake",
+    "thinking",
+    "tiptoe",
+    "waiting"
+  ],
+  "clips": {
+    "tiptoe": {
+      "frames": 109,
+      "unique": 66,
+      "rate": 60
+    },
+    "thinking": {
+      "frames": 265,
+      "unique": 180,
+      "rate": 60
+    },
+    "run-right": {
+      "frames": 41,
+      "unique": 41,
+      "rate": 60.29411764705882
+    },
+    "run-left": {
+      "frames": 41,
+      "unique": 41,
+      "rate": 60.29411764705882
+    },
+    "jump": {
+      "frames": 115,
+      "unique": 114,
+      "rate": 120
+    },
+    "failed": {
+      "frames": 493,
+      "unique": 308,
+      "rate": 120
+    },
+    "waiting": {
+      "frames": 582,
+      "unique": 288,
+      "rate": 120
+    },
+    "review": {
+      "frames": 609,
+      "unique": 451,
+      "rate": 120
+    },
+    "shake": {
+      "frames": 313,
+      "unique": 135,
+      "rate": 120
+    }
+  },
+  "running": {
+    "method": "original whole-character running poses; no limb rig or reconstructed gait",
+    "mode": "restored",
+    "period": 0.68,
+    "source_pack_sha256": "59885dae2522db9df195fde89d0cee2d89c88d0cffae977755f197dc94f90c40"
+  },
+  "sha256": "0a9efebcf7e9aeb445fe709a895d6483fac6ee43885722a9545d26fd9b5f0181"
+}

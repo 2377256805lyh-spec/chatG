@@ -1,0 +1,98 @@
+{
+  "rate": 60,
+  "size": [
+    576,
+    624
+  ],
+  "method": "individually painted limb cels; timed held exposures; no joint interpolation",
+  "clips": {
+    "sleepy": {
+      "frames": 198,
+      "unique": 16,
+      "painted_cels": 17,
+      "duration": 3.3,
+      "motion_exposure_ticks": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        12
+      ],
+      "motion_cels_per_second_range": [
+        5.0,
+        15.0
+      ]
+    },
+    "idea": {
+      "frames": 186,
+      "unique": 23,
+      "painted_cels": 24,
+      "duration": 3.1,
+      "motion_exposure_ticks": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "motion_cels_per_second_range": [
+        8.57,
+        15.0
+      ]
+    }
+  },
+  "bodies_sha256": {
+    "extra-sleepy-body.png": "8f89d8a970c50562c4d806098ac0ab1fb07bc4d021e547e5d88248988a6bda86",
+    "extra-idea-body.png": "2e746e159c2ca3176cf9a5da1e92c18f23d2f0b3cb601d5faa7516c4c1a17dd2"
+  },
+  "sources_sha256": {
+    "assets/extra-gestures/painted/sleepy/cels/00.png": "2a27eea43abd7f30c0a7dbd680eecc572ef573b784d0bb07597b8b92f4b2ab1b",
+    "assets/extra-gestures/painted/sleepy/cels/01.png": "7e390ff885aad85899210b6860cf32cb2d3d43449be8a77024e4d6969c81267e",
+    "assets/extra-gestures/painted/sleepy/cels/02.png": "869ae28e10edbe31add46c804a7872cf26733fb3de30b0f8213a14e65abb338e",
+    "assets/extra-gestures/painted/sleepy/cels/03.png": "f25418fe27d6c9fed5fcc690422e9a13eec65c58e7cb566802fc079d957aaf09",
+    "assets/extra-gestures/painted/sleepy/cels/04.png": "091b936a0f2ee5d6c7047474a8d7ab3201012d4f05bc5e7782483391df6b480a",
+    "assets/extra-gestures/painted/sleepy/cels/05.png": "1cc9a1b49959156f4d62686b5225874dbc5d40eefaeffb6bf21fa3f290f5a0ae",
+    "assets/extra-gestures/painted/sleepy/cels/06.png": "9a3c54efb4d356b4e69b86ce9cad84a96ac9cef6a6e9b070beda03edc07d5709",
+    "assets/extra-gestures/painted/sleepy/cels/07.png": "e255dd0f42e461eff8023e3823104a18b6edfb0f729749537714b48c76aad7f0",
+    "assets/extra-gestures/painted/sleepy/cels/08.png": "7b81d5cc9774b17895f8c08511b35e8d3f2460235a005494e45b4e42454f961d",
+    "assets/extra-gestures/painted/sleepy/cels/09.png": "96cff153f9f3854ae2743bfa955b0dcd56c15c4764de197a6b805f36816323ef",
+    "assets/extra-gestures/painted/sleepy/cels/10.png": "786df2926103590b8f9f420317b91a38b14e831beb9cead15a96bb1eef34fb3b",
+    "assets/extra-gestures/painted/sleepy/cels/16.png": "e1c06d28580d370bf007fb8a2ec8aec4827ed2ac98ffc545d548c53d37259219",
+    "assets/extra-gestures/painted/sleepy/cels/17.png": "73f0e5a2e8cbcc9587c7cf005b3869b98ace197ca932bbc933c36b356d79f196",
+    "assets/extra-gestures/painted/sleepy/cels/18.png": "0792616c6848e4705e5b85759f3d14885ec4f77d5c91db8233279bf2dbbdc37e",
+    "assets/extra-gestures/painted/sleepy/cels/19.png": "3b711db93a86b1b39c44462cc16bc7537fc70502104f0cd246424d4e98a29ef3",
+    "assets/extra-gestures/painted/sleepy/cels/20.png": "be00b96b97ba4162a50cb60d82014ef5eb8a8db9c311a4081e4d4ffd8bb0589d",
+    "assets/extra-gestures/painted/sleepy/cels/22.png": "2a27eea43abd7f30c0a7dbd680eecc572ef573b784d0bb07597b8b92f4b2ab1b",
+    "assets/extra-gestures/painted/sleepy/metadata.json": "364c7865c792056c167d7400d23527b301f3be0859a53ef2cc596cd55bd33066",
+    "assets/extra-gestures/painted/idea/cels/00.png": "9b86d34b3b8e139bd74e20eae1cccf36d04b4370745645270da7d02d81b403c1",
+    "assets/extra-gestures/painted/idea/cels/01.png": "d4c998911f563043363880d318371e461b233125a8f6af0e8e940c3cb9aacc41",
+    "assets/extra-gestures/painted/idea/cels/02.png": "d40bdc7c8b513941ac0c12d53dd52ba8c2ef87d242c1fce23689adabedb8a447",
+    "assets/extra-gestures/painted/idea/cels/03.png": "daca5302266628d47e224e1757db13b2b49c57e95eca510c914cba0f4643c9a8",
+    "assets/extra-gestures/painted/idea/cels/04.png": "a47a8f66641aa143f0c9801a2203462f011e63b98df01e33511e14753390f07d",
+    "assets/extra-gestures/painted/idea/cels/05.png": "175eee6372745d1f295a71122f13f85bd04a7493aaeb9f48206b3366564843a3",
+    "assets/extra-gestures/painted/idea/cels/06.png": "9e63ec594f7b97a4d6cefbb0fecbaaafb746226ca9e9a77e030b9256f921de98",
+    "assets/extra-gestures/painted/idea/cels/07.png": "e10f9b06541778da83075168cc32d14a42b919c588c65f60773bd8d840c74fc8",
+    "assets/extra-gestures/painted/idea/cels/08.png": "04f55228db9c0dd6fc9069f8390b0cc93b088ef6572c6990224e31645e6079c1",
+    "assets/extra-gestures/painted/idea/cels/09.png": "af687ebad5356c539066b083d259359904ada70c0186bae51ecaafc96522a2e8",
+    "assets/extra-gestures/painted/idea/cels/10.png": "f308e707715d52d5e9f2003de8a4c7b5d329e43c17a63698ade6ca0859524eb7",
+    "assets/extra-gestures/painted/idea/cels/11.png": "356f907a7e5125b6ab4d7f629ec143f1460f1d181c1812793f4f69bc23b6cd34",
+    "assets/extra-gestures/painted/idea/cels/12.png": "5822b19c292af3eeb51d97c6c8f1ee5103ad3b9be39c8060ea7f6276a4d62955",
+    "assets/extra-gestures/painted/idea/cels/13.png": "2e8eba1bc078d9bbbe9b1f935d98094757b6b58f5bcf1e6708da71a670ef9f50",
+    "assets/extra-gestures/painted/idea/cels/14.png": "582a2a58b0c53ed1d6b2ebd547732186bd7bbe8263c154128fec39e68e2f4a61",
+    "assets/extra-gestures/painted/idea/cels/15.png": "e45ee6cace1c368868871c85123913221943d9ecf48856915c2f412b3abe00a9",
+    "assets/extra-gestures/painted/idea/cels/16.png": "2c4b7f98a5c88d7c10ba7b12cdca9cb1fe939aac90906aa80a1bb858ce92b877",
+    "assets/extra-gestures/painted/idea/cels/17.png": "8b5426f0b7ffc9845d0b71db71980ee0fb6612c94e88559c8efdff82eb50d161",
+    "assets/extra-gestures/painted/idea/cels/18.png": "a825fb215f7c93817dba3d33fe8d85914251dcf037d0253e39b022042eb1d9a0",
+    "assets/extra-gestures/painted/idea/cels/19.png": "9372091f54b1336ecf3a3744c4c59947185dffede0a31bc2d8da20d1f55fffba",
+    "assets/extra-gestures/painted/idea/cels/20.png": "2dcbcffea49632b5e9d92f3c3abe2ee540b6afd308d2f8f0413727f7a38f6f3f",
+    "assets/extra-gestures/painted/idea/cels/21.png": "6690ef86bb07f9ce014381cdec3441a8506edd13b3e0c21c57e4d2117e3b3d61",
+    "assets/extra-gestures/painted/idea/cels/22.png": "c203f23efc7c5666cb4036957d363d86b07cecc6a10b47629c13c754aa2afce4",
+    "assets/extra-gestures/painted/idea/cels/23.png": "9b86d34b3b8e139bd74e20eae1cccf36d04b4370745645270da7d02d81b403c1",
+    "assets/extra-gestures/painted/idea/metadata.json": "9f4112d06c3593ff0de9ccdcd5758aa6b2545ea3c5b29c4184a54da5d700709a",
+    "scripts/make-painted-gestures.py": "2b6ada7ad27207b37d84aba2d6d7b4fe9c6da45506eb212803379953c8c9b080",
+    "assets/extra-gestures/painted/sequence.json": "55bd805ccde3b1472dc59fab608d18154966d7384510531d4e6842a02400470f",
+    "assets/thinking/pose-00.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41"
+  },
+  "sha256": "7441e2b136c0db435e5b408c7775734e2cd487f426c7bda209a5980aa8bd112c"
+}

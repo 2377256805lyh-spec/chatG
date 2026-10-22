@@ -17,6 +17,7 @@ namespace XiaoGDesktop
         private readonly HeadMotion headMotion;
         private readonly byte[] restPixels;
         private readonly AnimationFrames animationFrames = new AnimationFrames();
+        private readonly ExtraGestureArtwork extraGestures;
         private readonly Dictionary<int, BitmapSource> cache = new Dictionary<int, BitmapSource>();
         private readonly Queue<int> cacheOrder = new Queue<int>();
         private readonly Dictionary<int, PoseMotion> motions = new Dictionary<int, PoseMotion>();
@@ -73,9 +74,12 @@ namespace XiaoGDesktop
                     }
                 blinks[phase] = Bitmap(result);
             }
+            extraGestures = new ExtraGestureArtwork(blinks);
         }
 
         internal BitmapSource Blink(int phase) { return blinks[phase]; }
+        internal BitmapSource ExtraBody(string name, int eye) { return extraGestures.Body(name, eye); }
+        internal BitmapSource ExtraArm(string name, double seconds) { return extraGestures.Arm(name, seconds); }
 
         internal BitmapSource Animation(string name, double elapsed)
         {

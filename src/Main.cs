@@ -74,12 +74,16 @@ namespace XiaoGDesktop
         private const double ClickDelayMilliseconds = 280;
         private const double JumpPreparation = 0.09;
         private readonly Image portrait = new Image();
+        private readonly Image limbPortrait = new Image { IsHitTestVisible = false };
         private readonly TranslateTransform movement = new TranslateTransform();
         private readonly ScaleTransform breathing = new ScaleTransform(1, 1);
+        private readonly RotateTransform inclination = new RotateTransform();
+        private readonly ActionDecorations decorations = new ActionDecorations { IsHitTestVisible = false };
         private FrameComposer artwork;
         private BitmapSource[,] frames;
         private readonly byte[] hitPixel = new byte[4];
         private BitmapSource currentImage;
+        private BitmapSource currentLimb;
         private readonly Stopwatch clock = Stopwatch.StartNew();
         private readonly string settingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
         private readonly Random random = new Random();
@@ -97,7 +101,7 @@ namespace XiaoGDesktop
         private double bubbleStarted, bubbleDuration = 4.8;
         private SpeechBubble bubble;
         private VoiceClips voice;
-        private readonly string[] cycle = { "tiptoe", "thinking", "shake", "failed", "waiting", "review" };
+        private readonly string[] cycle = { "tiptoe", "thinking", "shake", "failed", "waiting", "review", "sleepy", "idea" };
         private readonly string[] phrases = {
             "小G萌萌哒，学习也要棒棒哒！", "小G督促你学习哟～", "先自己想两分钟，小G陪你。",
             "今天也一点点变厉害～", "摸摸结束，来学一个小知识吧。", "喝口水，看看远处再继续～",
@@ -136,10 +140,19 @@ namespace XiaoGDesktop
             portrait.RenderTransformOrigin = new Point(0.5, 198.0 / CellHeight);
             TransformGroup transforms = new TransformGroup();
             transforms.Children.Add(breathing);
+            transforms.Children.Add(inclination);
             transforms.Children.Add(movement);
             portrait.RenderTransform = transforms;
             RenderOptions.SetBitmapScalingMode(portrait, BitmapScalingMode.HighQuality);
             surface.Children.Add(portrait);
+            limbPortrait.Stretch = Stretch.Fill;
+            limbPortrait.RenderTransformOrigin = portrait.RenderTransformOrigin;
+            limbPortrait.RenderTransform = transforms;
+            RenderOptions.SetBitmapScalingMode(limbPortrait, BitmapScalingMode.HighQuality);
+            surface.Children.Add(limbPortrait);
+            decorations.RenderTransformOrigin = portrait.RenderTransformOrigin;
+            decorations.RenderTransform = transforms;
+            surface.Children.Add(decorations);
             Content = surface;
             ApplySize();
             SetFrame(0, 0);
@@ -263,6 +276,11 @@ namespace XiaoGDesktop
                     {
                         currentImage.CopyPixels(new Int32Rect(x, y, 1, 1), hitPixel, 4, 0);
                         transparent = hitPixel[3] < 12;
+                        if (transparent && currentLimb != null)
+                        {
+                            currentLimb.CopyPixels(new Int32Rect(x, y, 1, 1), hitPixel, 4, 0);
+                            transparent = hitPixel[3] < 12;
+                        }
                     }
                     if (transparent)
                     {
@@ -282,6 +300,12 @@ namespace XiaoGDesktop
             portrait.Width = preferences.Size;
             portrait.Height = CellHeight * ratio;
             Canvas.SetTop(portrait, Headroom);
+            limbPortrait.Width = portrait.Width;
+            limbPortrait.Height = portrait.Height;
+            Canvas.SetTop(limbPortrait, Headroom);
+            decorations.Width = portrait.Width;
+            decorations.Height = portrait.Height;
+            Canvas.SetTop(decorations, Headroom);
         }
 
         private void ResizeBy(double factor)
@@ -451,8 +475,10 @@ namespace XiaoGDesktop
             if (pendingClickAt >= 0 && !pressed && (time - pendingClickAt) * 1000 >= ClickWindowMilliseconds())
                 ConfirmSingleClick();
             UpdateBubble(time);
-            // 审核后的动作预先补成60帧/秒；播放按时间取图，不累积慢帧延迟。
-            long artworkTick = (long)(time * AnimationFrames.Rate);
+            // 动作按各自的采样频率取图；最高120帧/秒，踮脚和思考沿用原画节奏。
+            int artworkRate = !dragging && ExtraActions.Duration(action) > 0 ? 60
+                : dragging || action != "idle" && action != "tiptoe" && action != "thinking" ? AnimationFrames.Rate : 60;
+            long artworkTick = (long)(time * artworkRate);
             if (artworkTick == lastArtworkTick) return;
             lastArtworkTick = artworkTick;
             double delta = Math.Max(0, Math.Min(0.10, time - lastRender));
@@ -462,12 +488,40 @@ namespace XiaoGDesktop
             movement.X = 0;
             movement.Y = 0;
             breathing.ScaleY = 1;
+            inclination.Angle = 0;
+            if (dragging || ExtraActions.Duration(action) == 0)
+            {
+                decorations.Clear();
+                if (currentLimb != null) { currentLimb = null; limbPortrait.Source = null; }
+            }
             if (dragging)
             {
                 ShowFrame(artwork.Animation(dragDirection > 0 ? "run-right" : "run-left", time - dragStart));
                 return;
             }
-            if (action == "jump")
+            if (ExtraActions.Duration(action) > 0)
+            {
+                if (elapsed >= ExtraActions.Duration(action))
+                {
+                    action = "idle";
+                    decorations.Clear();
+                    currentLimb = null;
+                    limbPortrait.Source = null;
+                    gazeStrength = 0;
+                    ScheduleBlink();
+                }
+                else
+                {
+                    ExtraActionPose pose = ExtraActions.Sample(action, elapsed);
+                    ShowFrame(artwork.ExtraBody(action, pose.Eye));
+                    currentLimb = artwork.ExtraArm(action, elapsed);
+                    limbPortrait.Source = currentLimb;
+                    inclination.Angle = pose.Angle;
+                    movement.Y = pose.OffsetY * ratio;
+                    decorations.Update(pose);
+                }
+            }
+            else if (action == "jump")
             {
                 const double preparation = JumpPreparation, flight = 0.72, landing = 0.14;
                 if (elapsed < preparation)
@@ -639,8 +693,8 @@ namespace XiaoGDesktop
             linked.IsChecked = CodexLink.Enabled;
             menu.Items.Add(new Separator());
             MenuItem actions = new MenuItem { Header = "播放动作" };
-            string[] names = { "跳一下", "踮踮脚", "等等你", "想一想", "检查一下", "小沮丧", "摇摇头", "回到待机" };
-            string[] values = { "jump", "tiptoe", "waiting", "thinking", "review", "failed", "shake", "idle" };
+            string[] names = { "跳一下", "踮踮脚", "等等你", "想一想", "检查一下", "小沮丧", "摇摇头", "困困打盹", "灵光一闪", "回到待机" };
+            string[] values = { "jump", "tiptoe", "waiting", "thinking", "review", "failed", "shake", "sleepy", "idea", "idle" };
             for (int i = 0; i < names.Length; i++)
             {
                 string value = values[i];
@@ -691,6 +745,8 @@ namespace XiaoGDesktop
             menu.Items.Add("检查一下", null, delegate { Dispatcher.Invoke(new Action(delegate { StartAction("review"); })); });
             menu.Items.Add("小沮丧", null, delegate { Dispatcher.Invoke(new Action(delegate { StartAction("failed"); })); });
             menu.Items.Add("摇摇头", null, delegate { Dispatcher.Invoke(new Action(delegate { StartAction("shake"); })); });
+            menu.Items.Add("困困打盹", null, delegate { Dispatcher.Invoke(new Action(delegate { StartAction("sleepy"); })); });
+            menu.Items.Add("灵光一闪", null, delegate { Dispatcher.Invoke(new Action(delegate { StartAction("idea"); })); });
             menu.Items.Add("退出小G", null, delegate { Dispatcher.Invoke(new Action(Close)); });
             tray.ContextMenuStrip = menu;
             tray.DoubleClick += delegate { Dispatcher.Invoke(new Action(ReturnHome)); };

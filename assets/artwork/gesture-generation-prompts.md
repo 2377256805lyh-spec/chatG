@@ -6,7 +6,7 @@
 
 ## 挥手：waving-coordinated.png
 
-最终原图：`exec-385292d1-dcda-4755-a831-1e5a92678654.png`。
+最终原图：`C:\Users\47354\.codex\generated_images\01a11549-0893-7713-8442-0d0dcdac42ff\exec-385292d1-dcda-4755-a831-1e5a92678654.png`。
 
 初次生成有边缘噪点和留白不足，经下面的定向修正版清理后采用。
 
@@ -39,7 +39,7 @@ Maintain eight consistent full-body drawings, never stretch the face or alter th
 
 ## 思考：thinking-coordinated.png
 
-最终原图：`exec-7261325b-9da8-4397-9063-86d710a52e37.png`。
+最终原图：`C:\Users\47354\.codex\generated_images\01a11549-0893-7713-8442-0d0dcdac42ff\exec-7261325b-9da8-4397-9063-86d710a52e37.png`。
 
 第7张眨眼在导入后只替换第6张的眼部像素，手、肩膀和身体保留第6张，以免眨眼时抖动。程序将动作安排为抬手、思考停留、短眨眼、收手。
 

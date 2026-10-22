@@ -3,7 +3,18 @@ $framework = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
 $sourceFolder = Join-Path $PSScriptRoot 'src'
 $assetFolder = Join-Path $PSScriptRoot 'assets'
 $compiler = Join-Path $framework 'csc.exe'
+$animationCatalog = Get-Content -LiteralPath (Join-Path $assetFolder 'animation-frames.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ((Get-FileHash -LiteralPath (Join-Path $assetFolder 'animation-frames.zip') -Algorithm SHA256).Hash -ine $animationCatalog.sha256) {
+    throw '动作帧包与制作清单不一致，请重新制作动作帧包。'
+}
 $gazeCatalog = Get-Content -LiteralPath (Join-Path $assetFolder 'gaze-flow.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$extraCatalog = Get-Content -LiteralPath (Join-Path $assetFolder 'extra-gestures.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ((Get-FileHash -LiteralPath (Join-Path $assetFolder 'extra-gestures.zip') -Algorithm SHA256).Hash -ine $extraCatalog.sha256) {
+    throw '新动作肢体帧包与制作清单不一致。'
+}
+foreach ($asset in $extraCatalog.bodies_sha256.PSObject.Properties) {
+    if ((Get-FileHash -LiteralPath (Join-Path (Join-Path $assetFolder 'artwork') $asset.Name) -Algorithm SHA256).Hash -ine $asset.Value) { throw '新动作身体底图与清单不一致。' }
+}
 if ((Get-FileHash -LiteralPath (Join-Path $assetFolder 'gaze-flow.bin') -Algorithm SHA256).Hash -ine $gazeCatalog.sha256) {
     throw '转头位移文件与清单不一致，请重新制作转头位移。'
 }
@@ -36,10 +47,13 @@ $arguments = @(
     (Join-Path $sourceFolder 'GestureLayers.cs'),
     (Join-Path $sourceFolder 'BubbleDesign.cs'),
     (Join-Path $sourceFolder 'VoiceClips.cs')
+    (Join-Path $sourceFolder 'ExtraActions.cs')
+    (Join-Path $sourceFolder 'ExtraGestureArtwork.cs')
 )
 $framePack = Join-Path $assetFolder 'animation-frames.zip'
 if (Test-Path -LiteralPath $framePack) { $arguments += '/resource:' + $framePack + ',animation-frames.zip' }
-Get-ChildItem -LiteralPath (Join-Path $assetFolder 'artwork') -Filter '*.png' | Where-Object { $_.Name -notlike 'waving*' -and $_.Name -notin @('failed.png', 'arm-background.png', 'running.png') } | ForEach-Object {
+$arguments += '/resource:' + (Join-Path $assetFolder 'extra-gestures.zip') + ',extra-gestures.zip'
+Get-ChildItem -LiteralPath (Join-Path $assetFolder 'artwork') -Filter '*.png' | Where-Object { $_.Name -notlike 'waving*' -and $_.Name -notin @('failed.png', 'arm-background.png', 'running.png', 'extra-shy-body.png') } | ForEach-Object {
     $arguments += '/resource:' + $_.FullName + ',artwork.' + $_.Name
 }
 $voiceFolder = Join-Path $assetFolder 'voice'

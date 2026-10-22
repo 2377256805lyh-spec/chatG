@@ -1,0 +1,19 @@
+{
+  "assembly_sha256": "3d49dc7c568f63260dc9a9008e205a97b0f746a8f897864c35a6ea3ff1dffcf0",
+  "clips": {
+    "sleepy": {
+      "seconds": 3.3,
+      "frames": 198,
+      "rate": 60,
+      "painted_unique_cels": 16,
+      "rub_unique_cels": 3
+    },
+    "idea": {
+      "seconds": 3.1,
+      "frames": 186,
+      "rate": 60,
+      "painted_unique_cels": 23
+    }
+  },
+  "method": "timed painted cels; slower sleepy arm raise; extended pointing pose with stars"
+}
