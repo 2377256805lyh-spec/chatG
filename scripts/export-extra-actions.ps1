@@ -17,8 +17,8 @@ try {
     $sheet.EndInit()
 } finally { $stream.Dispose() }
 $composerType = $assembly.GetType('XiaoGDesktop.FrameComposer', $true)
-$constructor = $composerType.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imaging.BitmapSource]), $null)
-$composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject))
+$constructor = $composerType.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imaging.BitmapSource],[bool]), $null)
+$composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject,$true))
 $bodyMethod = $composerType.GetMethod('ExtraBody', $flags)
 $armMethod = $composerType.GetMethod('ExtraArm', $flags)
 $actions = $assembly.GetType('XiaoGDesktop.ExtraActions', $true)

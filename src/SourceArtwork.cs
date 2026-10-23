@@ -13,12 +13,13 @@ namespace XiaoGDesktop
         internal const int Scale = 3;
         internal const int Width = 192 * Scale, Height = 208 * Scale;
 
-        internal static byte[,][] Load(byte[,][] reference, int[] counts)
+        internal static byte[,][] Load(byte[,][] reference, int[] counts, bool gazeOnly = false)
         {
             string[] names = { "idle", "running-right", null, null, "jumping", null, "waiting", null, "review", "look-row-9", "look-row-10" };
             byte[,][] result = new byte[11, 8][];
             for (int row = 0; row < names.Length; row++)
             {
+                if (gazeOnly && row != 0 && row != 9 && row != 10) continue;
                 if (names[row] == null) continue;
                 BitmapImage sheet = new BitmapImage();
                 using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("artwork." + names[row] + ".png"))
@@ -62,7 +63,7 @@ namespace XiaoGDesktop
                     result[row, col] = pixels;
                 }
             }
-            for (int col = 0; col < 8; col++)
+            for (int col = 0; !gazeOnly && col < 8; col++)
             {
                 byte[] left = new byte[Width * Height * 4];
                 for (int y = 0; y < Height; y++)

@@ -13,7 +13,7 @@
 
 - `assets/xiaog-atlas.png`：角色图集和原始位置标尺。
 - `assets/artwork/`：当前程序使用的高清动作原画。
-- `assets/animation-frames.zip`：预制动画帧包，使用 Git LFS 管理；SHA-256 为 `0a9efebcf7e9aeb445fe709a895d6483fac6ee43885722a9545d26fd9b5f0181`，各动作信息见 `assets/animation-frames.json`。
+- `assets/animation-frames.zip`：预制动画帧包，使用 Git LFS 管理；SHA-256 为 `3b264a7bb75107fed76a4ec9c855123df360917f5d52d2fafa18d93dfc838f1d`，各动作信息见 `assets/animation-frames.json`。
 - `assets/extra-gestures/painted/`：新动作的逐格原画、肢体层、定位记录与完整 ImageGen 提示词；`sequence.json` 记录曝光时间。`shy/` 为已移除动作的历史素材，不嵌入程序。
 - `assets/extra-gestures.zip`：困困打盹与灵光一闪的透明肢体帧包；身体底图和来源文件校验值见 `assets/extra-gestures.json`。
 - `assets/gaze/`、`assets/gaze-flow.bin` 及清单：转头原画、定位点与位移数据。

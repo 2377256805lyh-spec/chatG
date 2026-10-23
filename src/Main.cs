@@ -26,7 +26,10 @@ namespace XiaoGDesktop
         [DataMember] public bool Speech = true;
         [DataMember] public bool Voice = true;
         [DataMember] public int VoiceVolume = 55;
-        [OnDeserializing] private void Defaults(StreamingContext context) { Speech = true; Voice = true; VoiceVolume = 55; }
+        [OnDeserializing] private void Defaults(StreamingContext context)
+        {
+            Size = 224; Left = Top = double.NaN; Topmost = Speech = Voice = true; VoiceVolume = 55;
+        }
     }
 
     public static class Program
@@ -241,7 +244,7 @@ namespace XiaoGDesktop
                 sheet.EndInit();
             }
             sheet.Freeze();
-            artwork = new FrameComposer(sheet);
+            artwork = new FrameComposer(sheet, true);
             frames = artwork.Frames;
         }
 
@@ -262,6 +265,9 @@ namespace XiaoGDesktop
 
         private IntPtr WindowHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
+            // 拔插显示器或任务栏改变工作区后，自动把人物和气泡收回可见区域。
+            if (message == 0x007E || message == 0x001A && wParam.ToInt64() == 0x002F)
+                Dispatcher.BeginInvoke(new Action(delegate { KeepOnScreen(); PositionBubble(); SavePreferences(); }));
             // 透明空白处把鼠标交还给后面的窗口；按住拖动时继续接收松开事件。
             if (message == 0x0084 && !pressed && currentImage != null)
             {
@@ -406,6 +412,7 @@ namespace XiaoGDesktop
 
         private void StartAction(string value)
         {
+            pendingClickAt = -1;
             // 跳跃过程中不因连点重新起跳；其他动作可以随时切换。
             if (action == "jump" && value == "jump") return;
             action = value;

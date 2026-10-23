@@ -23,10 +23,17 @@ namespace XiaoGDesktop
         private readonly Dictionary<int, PoseMotion> motions = new Dictionary<int, PoseMotion>();
         private readonly Queue<int> motionOrder = new Queue<int>();
 
-        internal FrameComposer(BitmapSource sheet)
+        internal FrameComposer(BitmapSource sheet) : this(sheet, false) { }
+
+        internal FrameComposer(BitmapSource sheet, bool preferPreparedFrames)
         {
+            bool compact = preferPreparedFrames;
+            foreach (string name in new string[] { "run-right", "run-left", "jump", "tiptoe", "thinking", "failed", "waiting", "review", "shake" })
+                if (!animationFrames.Contains(name)) compact = false;
             int[] counts = { 6, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8 };
             for (int row = 0; row < counts.Length; row++)
+            {
+                if (compact && row != 0 && row != 9 && row != 10) continue;
                 for (int col = 0; col < counts[row]; col++)
                 {
                     BitmapSource crop = new CroppedBitmap(sheet, new Int32Rect(col * W, row * H, W, H));
@@ -34,8 +41,10 @@ namespace XiaoGDesktop
                     byte[] bytes = new byte[W * H * 4];
                     converted.CopyPixels(bytes, W * 4, 0); raw[row, col] = bytes;
                 }
-            for (int col = 0; col < 8; col++) raw[2, col] = Mirror(raw[1, col], W, H);
-            byte[,][] high = SourceArtwork.Load(raw, counts);
+            }
+            // 正式运行已有完整帧包，不再重复生成只供素材制作/缺帧回退使用的原画。
+            for (int col = 0; !compact && col < 8; col++) raw[2, col] = Mirror(raw[1, col], W, H);
+            byte[,][] high = SourceArtwork.Load(raw, counts, compact);
             byte[] neutral = high[0, 0];
             restPixels = neutral;
             byte[][] looks = new byte[16][], highLooks = new byte[16][];
@@ -43,14 +52,15 @@ namespace XiaoGDesktop
             headMotion = new HeadMotion(raw[0, 0], looks, neutral, highLooks);
             // 跳跃姿势先统一脚底，抛物线只由窗口的位置变换负责。
             int[] baselines = { 199, 181, 162, 185, 199 };
-            for (int col = 0; col < 5; col++)
+            for (int col = 0; !compact && col < 5; col++)
             {
                 raw[4, col] = Shift(raw[4, col], W, H, 198 - baselines[col]);
                 high[4, col] = Shift(high[4, col], SourceArtwork.Width, SourceArtwork.Height, (198 - baselines[col]) * SourceArtwork.Scale);
             }
             for (int row = 0; row < counts.Length; row++)
-                for (int col = 0; col < counts[row]; col++) if (high[row, col] != null) Frames[row, col] = Bitmap(high[row, col]);
-            foreach (int row in new int[] { 5, 7 })
+                for (int col = 0; col < counts[row]; col++)
+                    if (high[row, col] != null && (!compact || row == 0 && col == 0)) Frames[row, col] = Bitmap(high[row, col]);
+            if (!compact) foreach (int row in new int[] { 5, 7 })
             {
                 byte[][] sequence = SourceArtwork.LoadSequence(row == 5 ? "failed-smooth" : "thinking-coordinated", raw[0, 0]);
                 for (int col = 0; col < sequence.Length; col++)
@@ -59,7 +69,7 @@ namespace XiaoGDesktop
                     raw[row, col] = Reduce(sequence[col]);
                 }
             }
-            CreateThinkingBlinks();
+            if (!compact) CreateThinkingBlinks();
             // 眨眼只替换眼睛附近，身体不参与重绘或缩放。
             int scale = SourceArtwork.Scale, width = SourceArtwork.Width;
             for (int phase = 0; phase < 3; phase++)
@@ -134,14 +144,28 @@ namespace XiaoGDesktop
                 return pose == ends.Length - 1 ? Motion(5, pose, 0, 0, amount) : Motion(5, pose, 5, pose + 1, amount);
             }
             if (name == "shake")
-            {
-                if (elapsed >= 2.6) return Frames[0, 0];
-                double sway = Math.Sin(elapsed * Math.PI * 2) * Math.Min(1, elapsed / .25) * Math.Min(1, (2.6 - elapsed) / .4);
-                // 比原来的2/3强度缩小约四分之一，节奏不变；连续补帧不跳级。
-                return Math.Abs(sway) < .000001 ? Frames[0, 0]
-                    : StabilizeShake(Bitmap(headMotion.RenderAmount(sway >= 0 ? DirectionCount / 4 : DirectionCount * 3 / 4, Math.Abs(sway) * .49)));
-            }
+                return Shake(elapsed);
             return Frames[0, 0];
+        }
+
+        private static readonly double[] ShakeTimes = { 0, .24, .64, 1.12, 1.64, 2.05, 2.60 };
+        private static readonly double[] ShakeYaw = { 0, .10, -.34, .30, -.18, .065, 0 };
+        private static readonly double[] ShakePitch = { 0, -.01, .025, .018, .012, .006, 0 };
+
+        internal BitmapSource Shake(double elapsed)
+        {
+            if (elapsed <= 0 || elapsed >= 2.60) return Frames[0, 0];
+            int step = 0;
+            while (elapsed > ShakeTimes[step + 1]) step++;
+            double t = (elapsed - ShakeTimes[step]) / (ShakeTimes[step + 1] - ShakeTimes[step]);
+            // 转向时速度、加速度都平缓归零；左右节奏和幅度不再机械重复。
+            t = t * t * t * (t * (t * 6 - 15) + 10);
+            double yaw = ShakeYaw[step] + (ShakeYaw[step + 1] - ShakeYaw[step]) * t;
+            double pitch = ShakePitch[step] + (ShakePitch[step + 1] - ShakePitch[step]) * t;
+            double strength = Math.Sqrt(yaw * yaw + pitch * pitch);
+            if (strength < .000001) return Frames[0, 0];
+            double direction = (Math.Atan2(yaw, -pitch) / (2 * Math.PI) + 1) * DirectionCount % DirectionCount;
+            return StabilizeShake(Bitmap(headMotion.RenderAmount(direction, strength)));
         }
 
         internal BitmapSource StabilizeShake(BitmapSource frame)
@@ -154,7 +178,10 @@ namespace XiaoGDesktop
                 for (int x = 76 * scale; x < 115 * scale; x++)
                 {
                     double px = (x + .5) / scale, py = (y + .5) / scale;
-                    double weight = Ease((py - 117.5) / 2) * Ease((px - 76) / 6) * Ease((115 - px) / 6);
+                    // 下巴中央最低，保护边界顺着下颚弧线向两边抬高，不冻结下巴下沿。
+                    double side = Math.Min(1, Math.Abs(px - 95) / 20);
+                    double boundary = 120.5 - 3.5 * side * side;
+                    double weight = Ease((py - boundary) / 3) * Ease((px - 76) / 6) * Ease((115 - px) / 6);
                     int p = (y * width + x) * 4;
                     for (int c = 0; c < 4; c++) pixels[p + c] = Mix(pixels[p + c], restPixels[p + c], weight);
                 }

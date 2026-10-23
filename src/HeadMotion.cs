@@ -56,10 +56,10 @@ namespace XiaoGDesktop
         }
 
         // 有限动作按连续强度提前绘制，避免点头和摇头只能逐级切换。
-        internal byte[] RenderAmount(int direction, double strength)
+        internal byte[] RenderAmount(double direction, double strength)
         {
             int divisions = FrameComposer.DirectionCount / 16;
-            int first = direction / divisions, second = (first + 1) % 16;
+            int first = (int)(direction / divisions), second = (first + 1) % 16;
             double between = (direction % divisions) / (double)divisions;
             byte[] result = around[first].Morph(neutral, poses[first], poses[second], between, Math.Max(0, Math.Min(1, strength)));
             // 过渡使用曲线边界，肩膀和翅膀处始终取待机图，不在脖子处横切一刀。

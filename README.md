@@ -19,7 +19,9 @@
 
 动作使用高清原画和预制过渡画面，转头另有细节位移数据；思考将手臂与身体分层，摇头保留颈部和衣领。程序按动作素材的采样频率取图，最高每秒更新 120 次，两种新动作每秒更新 60 次；实际流畅度受原画数量、屏幕刷新率和系统负载影响。
 
-困困打盹与灵光一闪使用逐格实画的手臂和袖子，固定脸、脖子与身体。打盹抬手稍慢，揉眼轻揉两次；灵光一闪举指冒星光时多停留约 0.3 秒。害羞晃晃已移除，原画只作为历史制作资料保留。奔跑沿用原有整个人物姿势，交叉步观感仍待后续改进。
+困困打盹与灵光一闪使用逐格实画的手臂和袖子，固定脸、脖子与身体。打盹抬手稍慢，揉眼轻揉两次；灵光一闪举指冒星光时多停留约 0.3 秒。害羞晃晃已移除，原画只作为历史制作资料保留。摇头先轻轻起势，左右摆幅逐渐收小，最后缓缓回正；下巴随转向变化，衣领保持稳定。奔跑沿用原有整个人物姿势，交叉步观感仍待后续改进。
+
+正式运行仅准备待机、眨眼和转头必需的原画，其他动作从帧包按需读取；解压使用独立的可复用缓冲区，缓存优先保留最近播放的画面。切换动作后预读及时转向新动作；奔跑循环的各帧按完整曝光时间播放，避免首尾停留不均。
 
 ## 下载与编译
 
@@ -34,13 +36,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 .\小G.exe
 ```
 
-构建会校验动作帧包、新动作身体底图、转头、思考分层和配音素材；配音还会核对文本、顺序和文件哈希。随后将素材嵌入根目录的 `小G.exe`。主动画帧包约 457 MB，使用 Git LFS 保存；若文件只有几行文字，请先运行 `git lfs pull`。
+构建会校验动作帧包、新动作身体底图、转头、思考分层和配音素材；配音还会核对文本、顺序和文件哈希。随后将素材嵌入根目录的 `小G.exe`。主动画帧包约 518 MB，使用 Git LFS 保存；若文件只有几行文字，请先运行 `git lfs pull`。
 
 编译出的程序不提交到源码仓库。便携运行只需 `小G.exe`；更新时退出旧程序、替换可执行文件，并保留原来的 `settings.json`。
 
 ## 设置与启动
 
 窗口位置、大小、置顶、语音开关、音量等保存在程序旁的 `settings.json`，该个人设置文件不提交到仓库。找不到人物时，可从通知区域图标选择找回，或双击图标将人物移回主屏幕。
+
+拔插显示器、调整分辨率或任务栏工作区后，人物会自动收回当前屏幕的可见范围。主动从菜单播放动作时，会取消尚未确认的单击，避免刚选的动作被跳跃覆盖。
 
 在右键菜单开启“随桌面 Codex 启动”后，程序在当前用户的 Windows 启动文件夹创建快捷方式，隐藏等待进程检测到桌面 Codex 窗口后打开小G。手动退出小G后，不会在同一次 Codex 打开期间反复拉起。可在同一菜单关闭此功能。
 
@@ -69,12 +73,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 - `scripts/make-thinking-layers.py`：从 `assets/thinking/` 生成手臂和身体遮挡底图。
 - `scripts/make-painted-gestures.py`：按 `assets/extra-gestures/painted/sequence.json` 打包两种新动作，需要 NumPy、Pillow；已有原画不再计算肢体变形。
 - `scripts/export-extra-actions.ps1`：从编译好的程序导出与实际绘制一致的完整 PNG 动作序列；用 `-AssemblyPath .\小G.exe -Output <输出目录>` 指定输入输出。
+- `scripts/export-animation-poses.ps1 -ShakeOnly`：导出 313 张摇头完整画面；交给 `scripts/make-animation.py --shake-frames <画面目录>` 单独替换摇头，其余动作按原压缩记录保留。这条打包路径只需 NumPy 和 Pillow。
 
 转头与思考分层制作需要 NumPy、Pillow 与 OpenCV。`make-extra-gestures.py` 是历史六姿势制作入口，其 `frames` 阶段不能覆盖当前实画帧包。声音制作和素材重制完成后需重新构建程序。
 
 ## 动态预览
 
-[动作预览](docs/previews/小G-动作动态预览.gif) · [转头预览](docs/previews/小G-转头动态预览.gif) · [颈部与思考分层修复](docs/previews/小G-颈部与思考修复预览.gif)
+[新版摇头](docs/previews/摇头柔和版.webp) · [动作预览](docs/previews/小G-动作动态预览.gif) · [转头预览](docs/previews/小G-转头动态预览.gif) · [颈部与思考分层修复](docs/previews/小G-颈部与思考修复预览.gif)
 
 [困困打盹](docs/previews/新增动作/困困打盹.webp) · [灵光一闪](docs/previews/新增动作/灵光一闪.webp) · [新动作制作说明](docs/previews/新增动作/制作说明.md)
 

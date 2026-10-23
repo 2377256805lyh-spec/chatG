@@ -7,11 +7,11 @@
 
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import zipfile
 
-import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 PERIOD = .68
@@ -144,20 +144,85 @@ def ease(value):
     return value * value * (3 - 2 * value)
 
 
+def replace_shake(args):
+    paths = sorted(args.shake_frames.glob('*.png'))
+    if len(paths) != 313 or args.rate != 120:
+        raise ValueError('摇头须由生产导出器提供313帧，120帧/秒')
+    spec = importlib.util.spec_from_file_location('xiaog_running_pack', Path(__file__).with_name('make-running.py'))
+    pack_writer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pack_writer)
+    args.preview.mkdir(parents=True, exist_ok=True)
+    previews = []
+    with zipfile.ZipFile(args.oldpack) as old, zipfile.ZipFile(args.output, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as new:
+        metadata = json.loads(old.read('animation-info.json'))
+        metadata['preserved'] = sorted(Path(n).stem for n in old.namelist()
+                                       if n.startswith('timelines/') and n.endswith('.txt') and Path(n).stem != 'shake')
+        keep = {n for n in old.namelist() if n.startswith('timelines/') and Path(n).stem != 'shake'}
+        for name in list(keep):
+            if name.endswith('.txt'):
+                keep.update('frames/'+key+'.bgra' for key in old.read(name).decode().splitlines())
+        pack_writer.copy_entries(old, new, keep)
+        old_keys = old.read('timelines/shake.txt').decode().splitlines()
+        neutral = np.frombuffer(old.read('frames/'+old_keys[0]+'.bgra'), np.uint8).reshape(HEIGHT, WIDTH, 4)
+        keys = []
+        for index, path in enumerate(paths):
+            rgba = np.asarray(Image.open(path).convert('RGBA'), dtype=float)
+            if rgba.shape != (HEIGHT, WIDTH, 4):
+                raise ValueError('摇头画面尺寸不一致')
+            rgba[:,:,:3] *= rgba[:,:,3:]/255
+            image = np.rint(rgba[:,:,[2,1,0,3]]).clip(0,255).astype(np.uint8)
+            # 身体始终沿用正式待机像素，PNG往返也不会改变裙摆和脚的位置/颜色。
+            image[134*3:] = neutral[134*3:]
+            if index == 0 or index == len(paths)-1:
+                image = neutral.copy()
+            data = image.tobytes(); key = hashlib.sha256(data).hexdigest()
+            entry = 'frames/'+key+'.bgra'
+            if entry not in new.NameToInfo:
+                new.writestr(entry, data)
+            keys.append(key)
+            if index % 2 == 0:
+                rgb = image[:,:,[2,1,0]].astype(float)+(1-image[:,:,3:]/255)*np.array((232,225,234))
+                previews.append(Image.fromarray(np.rint(rgb).clip(0,255).astype(np.uint8)))
+        new.writestr('timelines/shake.txt', '\n'.join(keys)+'\n')
+        new.writestr('timelines/shake.fps', '120\n')
+        metadata['clips']['shake'] = {'frames':len(keys), 'unique':len(set(keys)), 'rate':120}
+        metadata['shake'] = {'method':'damped asymmetric yaw with small pitch; jaw-following neck boundary', 'duration':2.6,
+                             'previous_pack_sha256':hashlib.sha256(args.oldpack.read_bytes()).hexdigest(),
+                             'source_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}}
+        new.writestr('animation-info.json', json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
+    durations = [round((i+1)*1000/60)-round(i*1000/60) for i in range(len(previews))]
+    previews[0].save(args.preview/'摇头.webp',save_all=True,append_images=previews[1:],duration=durations,loop=0,lossless=True)
+    gif = [im.resize((288,312),Image.Resampling.LANCZOS) for im in previews[::3]]
+    gif[0].save(args.preview/'摇头.gif',save_all=True,append_images=gif[1:],duration=50,loop=0)
+    metadata['sha256'] = hashlib.sha256(args.output.read_bytes()).hexdigest()
+    args.output.with_suffix('.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    print('仅更新摇头：313帧；其余动作原压缩记录保留。',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--oldpack', type=Path, required=True)
-    parser.add_argument('--poses', type=Path, required=True)
+    parser.add_argument('--poses', type=Path, help='重制原有过渡时的对齐原画目录；仅替换摇头时不需要')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--preview', type=Path, required=True)
     parser.add_argument('--rate', type=int, default=120)
     parser.add_argument('--running-frames', type=Path, help='已经审阅的完整人物奔跑画面目录；默认保留当前奔跑')
     parser.add_argument('--running-only', action='store_true', help='仅重制左右奔跑，原样保留其余动作')
+    parser.add_argument('--shake-frames', type=Path, help='仅替换生产导出器生成的完整摇头画面')
     args = parser.parse_args()
     if args.oldpack.resolve() == args.output.resolve():
         parser.error('输出请使用新路径；全部完成后再替换正式帧包。')
     if not 60 <= args.rate <= 144:
         parser.error('制作频率需在60到144之间。')
+    if args.shake_frames:
+        if args.running_only or args.running_frames:
+            parser.error('摇头替换不能同时重制奔跑')
+        replace_shake(args)
+        return
+    if args.poses is None:
+        parser.error('重制原有过渡需要 --poses 指定对齐原画目录')
+    global cv2
+    import cv2
     cv2.setNumThreads(4)
     neutral = load_pose(args.poses / 'neutral-00.png')
     sources = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in args.poses.glob('*.png')}

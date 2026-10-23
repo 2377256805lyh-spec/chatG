@@ -1,6 +1,7 @@
 ﻿param(
     [Parameter(Mandatory=$true)][string]$AssemblyPath,
-    [Parameter(Mandatory=$true)][string]$Output
+    [Parameter(Mandatory=$true)][string]$Output,
+    [switch]$ShakeOnly
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore,PresentationFramework,WindowsBase
@@ -19,6 +20,18 @@ $constructor = $type.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imag
 $composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject))
 $frames = $type.GetField('Frames', $flags).GetValue($composer)
 [IO.Directory]::CreateDirectory([IO.Path]::GetFullPath($Output)) | Out-Null
+if ($ShakeOnly) {
+    $shake = $type.GetMethod('Shake', $flags)
+    for ($i=0; $i -le 312; $i++) {
+        $image = $shake.Invoke($composer, [object[]]@([double]($i/120)))
+        $encoder = New-Object Windows.Media.Imaging.PngBitmapEncoder
+        $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($image))
+        $file = [IO.File]::Create((Join-Path $Output ('{0:0000}.png' -f $i)))
+        try { $encoder.Save($file) } finally { $file.Dispose() }
+    }
+    Write-Output '已导出摇头的313张完整画面（2.6秒，120帧/秒）。'
+    return
+}
 foreach ($sequence in @(@('neutral',0,1),@('run-right',1,8),@('jump',4,5),@('failed',5,8),@('waiting',6,6),@('review',8,6))) {
     for ($i=0; $i -lt $sequence[2]; $i++) {
         $image = $frames.GetValue([int]$sequence[1], $i)

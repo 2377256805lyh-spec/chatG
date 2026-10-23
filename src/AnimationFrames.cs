@@ -23,7 +23,12 @@ namespace XiaoGDesktop
         private readonly Dictionary<string, string[]> timelines = new Dictionary<string, string[]>();
         private readonly Dictionary<string, double> rates = new Dictionary<string, double>();
         private readonly Dictionary<string, BitmapSource> cache = new Dictionary<string, BitmapSource>();
-        private readonly Queue<string> order = new Queue<string>();
+        private readonly LinkedList<string> order = new LinkedList<string>();
+        private readonly Dictionary<string, LinkedListNode<string>> positions = new Dictionary<string, LinkedListNode<string>>();
+        private readonly byte[] pixels, aheadPixels;
+        private string[] requestedTimeline;
+        private int requestedIndex;
+        private bool requestedLoop;
         private bool preparing;
 
         internal AnimationFrames() : this("animation-frames.zip") { }
@@ -36,6 +41,9 @@ namespace XiaoGDesktop
             // 未制作帧包的源码构建沿用原画过渡，供正常制作新动作时使用。
             if (stream == null) return;
             archive = new ZipArchive(stream, ZipArchiveMode.Read);
+            // BitmapSource.Create 会复制像素；每条读取路径复用一块缓冲，避免每帧制造大对象垃圾。
+            pixels = new byte[SourceArtwork.Width * SourceArtwork.Height * 4];
+            aheadPixels = new byte[pixels.Length];
             foreach (ZipArchiveEntry entry in archive.Entries)
             {
                 if (!entry.FullName.StartsWith("timelines/", StringComparison.Ordinal) || !entry.FullName.EndsWith(".txt", StringComparison.Ordinal)) continue;
@@ -53,47 +61,62 @@ namespace XiaoGDesktop
             }
         }
 
+        internal bool Contains(string name) { return timelines.ContainsKey(name); }
+
         internal bool TryGet(string name, double elapsed, out BitmapSource image)
         {
             image = null;
             string[] timeline;
             if (!timelines.TryGetValue(name, out timeline)) return false;
-            double frame = elapsed * rates[name];
+            bool loop = name == "run-left" || name == "run-right";
+            double frame = Math.Max(0, elapsed) * rates[name];
+            // 循环帧表示完整曝光区间；四舍五入会让首帧减半、尾帧多停半帧。
             int index = Math.Max(0, Math.Min(timeline.Length - 1,
-                (int)(heldCels ? Math.Floor(frame + 1e-7) : Math.Round(frame))));
+                (int)(heldCels || loop ? Math.Floor(frame + 1e-7) : Math.Round(frame))));
             string key = timeline[index];
-            image = Load(key, archive);
-            PrepareAhead(timeline, index, name == "run-left" || name == "run-right");
+            image = Load(key, archive, pixels, true);
+            PrepareAhead(timeline, index, loop);
             return true;
         }
 
-        private BitmapSource Load(string key, ZipArchive sourceArchive)
+        private BitmapSource Load(string key, ZipArchive sourceArchive, byte[] buffer, bool touch)
         {
             BitmapSource image;
-            lock (cacheGate) if (cache.TryGetValue(key, out image)) return image;
+            lock (cacheGate)
+                if (cache.TryGetValue(key, out image))
+                {
+                    if (touch) { order.Remove(positions[key]); order.AddLast(positions[key]); }
+                    return image;
+                }
             ZipArchiveEntry entry = sourceArchive.GetEntry("frames/" + key + ".bgra");
-            int length = SourceArtwork.Width * SourceArtwork.Height * 4;
-            if (entry == null || entry.Length != length) throw new InvalidDataException("动作画面损坏：" + key);
-            byte[] pixels = new byte[length];
+            if (entry == null || entry.Length != buffer.Length) throw new InvalidDataException("动作画面损坏：" + key);
             using (Stream source = entry.Open())
             {
                 int read = 0;
-                while (read < pixels.Length)
+                while (read < buffer.Length)
                 {
-                    int count = source.Read(pixels, read, pixels.Length - read);
+                    int count = source.Read(buffer, read, buffer.Length - read);
                     if (count == 0) throw new EndOfStreamException("动作画面没有读取完整：" + key);
                     read += count;
                 }
             }
             image = BitmapSource.Create(SourceArtwork.Width, SourceArtwork.Height, 96 * SourceArtwork.Scale, 96 * SourceArtwork.Scale,
-                PixelFormats.Pbgra32, null, pixels, SourceArtwork.Width * 4);
+                PixelFormats.Pbgra32, null, buffer, SourceArtwork.Width * 4);
             image.Freeze();
             lock (cacheGate)
             {
                 BitmapSource existing;
-                if (cache.TryGetValue(key, out existing)) return existing;
-                if (cache.Count >= CacheFrames) cache.Remove(order.Dequeue());
-                cache.Add(key, image); order.Enqueue(key);
+                if (cache.TryGetValue(key, out existing))
+                {
+                    if (touch) { order.Remove(positions[key]); order.AddLast(positions[key]); }
+                    return existing;
+                }
+                if (cache.Count >= CacheFrames)
+                {
+                    string oldest = order.First.Value;
+                    order.RemoveFirst(); cache.Remove(oldest); positions.Remove(oldest);
+                }
+                cache.Add(key, image); positions.Add(key, order.AddLast(key));
             }
             return image;
         }
@@ -102,16 +125,9 @@ namespace XiaoGDesktop
         {
             lock (cacheGate)
             {
+                requestedTimeline = timeline; requestedIndex = index; requestedLoop = loop;
                 if (preparing) return;
-                bool missing = false;
-                for (int offset = 1; offset <= AheadFrames; offset++)
-                {
-                    int next = index + offset;
-                    if (loop) next %= timeline.Length;
-                    else if (next >= timeline.Length) break;
-                    if (!cache.ContainsKey(timeline[next])) { missing = true; break; }
-                }
-                if (!missing) return;
+                if (NextMissing() == null) return;
                 preparing = true;
             }
             ThreadPool.QueueUserWorkItem(delegate
@@ -121,18 +137,35 @@ namespace XiaoGDesktop
                     // 后台有独立压缩包读取位置，不与界面线程争用同一个流。
                     if (aheadArchive == null)
                         aheadArchive = new ZipArchive(Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName), ZipArchiveMode.Read);
-                    for (int offset = 1; offset <= AheadFrames; offset++)
+                    while (true)
                     {
-                        int next = index + offset;
-                        if (loop) next %= timeline.Length;
-                        else if (next >= timeline.Length) break;
-                        Load(timeline[next], aheadArchive);
+                        string next;
+                        lock (cacheGate)
+                        {
+                            // 每读完一帧重新查看最新动作，切换时最多只多读旧动作的一帧。
+                            next = NextMissing();
+                            if (next == null) { preparing = false; return; }
+                        }
+                        Load(next, aheadArchive, aheadPixels, false);
                     }
                 }
-                catch (InvalidDataException) { /* 当前帧仍由主读取路径正常处理素材错误。 */ }
-                catch (IOException) { /* 预读失败不阻断当前动作，下一帧走主读取路径。 */ }
-                finally { lock (cacheGate) preparing = false; }
+                catch (InvalidDataException) { lock (cacheGate) preparing = false; }
+                catch (IOException) { lock (cacheGate) preparing = false; }
             });
+        }
+
+        // 调用方持有 cacheGate；重复曝光已在缓存中时直接跳过。
+        private string NextMissing()
+        {
+            for (int offset = 1; offset <= AheadFrames; offset++)
+            {
+                int next = requestedIndex + offset;
+                if (requestedLoop) next %= requestedTimeline.Length;
+                else if (next >= requestedTimeline.Length) break;
+                string key = requestedTimeline[next];
+                if (!cache.ContainsKey(key)) return key;
+            }
+            return null;
         }
     }
 }
