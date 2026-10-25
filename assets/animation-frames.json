@@ -41,35 +41,32 @@
     "waiting-05.png": "0493e19967c24b5acfd8b32fd4482878f73029cea27d69967b3147f4ebb3f71c"
   },
   "preserved": [
-    "failed",
     "jump",
+    "failed",
+    "waiting",
     "review",
-    "run-left",
-    "run-right",
-    "thinking",
-    "tiptoe",
-    "waiting"
+    "shake"
   ],
   "clips": {
     "tiptoe": {
-      "frames": 109,
-      "unique": 66,
-      "rate": 60
+      "frames": 217,
+      "unique": 133,
+      "rate": 120.0
     },
     "thinking": {
-      "frames": 265,
-      "unique": 180,
-      "rate": 60
+      "frames": 529,
+      "unique": 390,
+      "rate": 120.0
     },
     "run-right": {
-      "frames": 41,
-      "unique": 41,
-      "rate": 60.29411764705882
+      "frames": 82,
+      "unique": 82,
+      "rate": 120.588235294118
     },
     "run-left": {
-      "frames": 41,
-      "unique": 41,
-      "rate": 60.29411764705882
+      "frames": 82,
+      "unique": 82,
+      "rate": 120.588235294118
     },
     "jump": {
       "frames": 115,
@@ -423,5 +420,15 @@
       "0312.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41"
     }
   },
-  "sha256": "3b264a7bb75107fed76a4ec9c855123df360917f5d52d2fafa18d93dfc838f1d"
+  "smoothing": {
+    "method": "bounded small-step midpoint correspondence; stationary pixels fixed; premultiplied alpha retained; original samples and 120Hz clips retained",
+    "source_pack_sha256": "3b264a7bb75107fed76a4ec9c855123df360917f5d52d2fafa18d93dfc838f1d",
+    "updated": [
+      "tiptoe",
+      "thinking",
+      "run-right",
+      "run-left"
+    ]
+  },
+  "sha256": "d7b9e4debb85e0dde9a6b3e0ca781bd153c056edcfb9ba5e654d2134e37dbc3a"
 }

@@ -144,6 +144,40 @@ def ease(value):
     return value * value * (3 - 2 * value)
 
 
+class SmallTransition:
+    """只细化已经密集的相邻画面；不再推断整张脸的关键点或重建透明轮廓。"""
+    def __init__(self, first, second):
+        self.first,self.second=first,second
+        self.same=np.array_equal(first,second)
+        if self.same:return
+        self.flows=[]
+        a,b=view(first),view(second)
+        for source,target in ((a,b),(b,a)):
+            engine=cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+            engine.setFinestScale(0)
+            flow=engine.calc(source,target,None)
+            flow=cv2.resize(cv2.GaussianBlur(flow,(0,0),1.2),(WIDTH,HEIGHT),interpolation=cv2.INTER_LINEAR)*1.5
+            # 原画间隔只有约1/60秒，大幅位移不可信，不能因此拉动五官或袖口。
+            self.flows.append(np.clip(flow,-4,4))
+        yy,xx=np.mgrid[:HEIGHT,:WIDTH].astype(np.float32)
+        self.grid=np.stack((xx,yy),axis=2)
+
+    def render(self,t):
+        if t<=0 or self.same:return self.first
+        if t>=1:return self.second
+        a=Transition.warped(self,self.first,self.flows[0],t)
+        b=Transition.warped(self,self.second,self.flows[1],1-t)
+        result=a*(1-t)+b*t
+        first=self.first.astype(np.float32);second=self.second.astype(np.float32)
+        still=cv2.erode((np.max(np.abs(first-second),axis=2)<=1).astype(np.uint8),np.ones((5,5),np.uint8))>0
+        result[still]=first[still]
+        distance=np.mean(np.abs(first-second))
+        # 匹配失败时只在本来相邻的两帧之间取像素，不放大原来极小的画面变化。
+        if np.mean(np.abs(first-result))+np.mean(np.abs(result-second))>distance*1.6+.04:
+            result=first*(1-t)+second*t
+        return np.rint(result).clip(0,255).astype(np.uint8)
+
+
 def replace_shake(args):
     paths = sorted(args.shake_frames.glob('*.png'))
     if len(paths) != 313 or args.rate != 120:
@@ -199,6 +233,63 @@ def replace_shake(args):
     print('仅更新摇头：313帧；其余动作原压缩记录保留。',flush=True)
 
 
+def smooth_existing(args):
+    global cv2
+    import cv2
+    cv2.setNumThreads(4)
+    spec=importlib.util.spec_from_file_location('xiaog_running_pack',Path(__file__).with_name('make-running.py'))
+    writer=importlib.util.module_from_spec(spec);spec.loader.exec_module(writer)
+    args.preview.mkdir(parents=True,exist_ok=True)
+    with zipfile.ZipFile(args.oldpack) as old,zipfile.ZipFile(args.output,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as new:
+        metadata=json.loads(old.read('animation-info.json'))
+        names=['tiptoe','thinking','run-right','run-left']
+        skip={'animation-info.json'}|{'timelines/'+name+suffix for name in names for suffix in ('.txt','.fps')}
+        writer.copy_entries(old,new,set(old.namelist())-skip)
+        runs=[]
+        for name in ['tiptoe','thinking','run-right']:
+            keys=old.read('timelines/'+name+'.txt').decode().splitlines()
+            rate=float(old.read('timelines/'+name+'.fps'))
+            if not 59<=rate<=61:raise ValueError('现有加密入口只接受原有60Hz动作')
+            loop=name=='run-right';count=len(keys)*2 if loop else len(keys)*2-1
+            output=[];views=[];previous=None
+            for index in range(count):
+                a=index//2;b=(a+1)%len(keys) if loop else min(a+1,len(keys)-1)
+                if previous!=a:
+                    first=np.frombuffer(old.read('frames/'+keys[a]+'.bgra'),np.uint8).reshape(HEIGHT,WIDTH,4).copy()
+                    second=np.frombuffer(old.read('frames/'+keys[b]+'.bgra'),np.uint8).reshape(HEIGHT,WIDTH,4).copy()
+                    transition=None;previous=a
+                if index%2 and keys[a]!=keys[b]:
+                    if transition is None:transition=SmallTransition(first,second)
+                    frame=transition.render(.5)
+                else:frame=first
+                data=frame.tobytes();key=hashlib.sha256(data).hexdigest();entry='frames/'+key+'.bgra'
+                if entry not in new.NameToInfo:new.writestr(entry,data)
+                output.append(key)
+                if loop:
+                    data=frame[:,::-1].copy().tobytes();mirror=hashlib.sha256(data).hexdigest();entry='frames/'+mirror+'.bgra'
+                    if entry not in new.NameToInfo:new.writestr(entry,data)
+                    runs.append(mirror)
+                if index%5==0:
+                    rgb=frame[:,:,[2,1,0]].astype(float)+(1-frame[:,:,3:]/255)*np.array((232,225,234))
+                    views.append(Image.fromarray(np.rint(rgb).clip(0,255).astype(np.uint8)).resize((288,312),Image.Resampling.LANCZOS))
+            for clip,items in [(name,output)]+([('run-left',runs)] if loop else []):
+                new.writestr('timelines/'+clip+'.txt','\n'.join(items)+'\n')
+                new.writestr('timelines/'+clip+'.fps',f'{rate*2:.12f}\n')
+                metadata['clips'][clip]={'frames':len(items),'unique':len(set(items)),'rate':rate*2}
+            views[0].save(args.preview/(name+'.gif'),save_all=True,append_images=views[1:],duration=round(5000/(rate*2)),loop=0)
+            if loop:
+                mirrored=[im.transpose(Image.Transpose.FLIP_LEFT_RIGHT) for im in views]
+                mirrored[0].save(args.preview/'run-left.gif',save_all=True,append_images=mirrored[1:],duration=round(5000/(rate*2)),loop=0)
+            print('已加密',name,len(keys),'->',len(output),'帧，原帧逐张保留',flush=True)
+        metadata['smoothing']={'method':'bounded small-step midpoint correspondence; stationary pixels fixed; premultiplied alpha retained; original samples and 120Hz clips retained',
+                               'source_pack_sha256':hashlib.sha256(args.oldpack.read_bytes()).hexdigest(),
+                               'updated':['tiptoe','thinking','run-right','run-left']}
+        metadata['preserved']=[name for name in metadata['clips'] if name not in names]
+        new.writestr('animation-info.json',json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
+    metadata['sha256']=hashlib.sha256(args.output.read_bytes()).hexdigest()
+    args.output.with_suffix('.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--oldpack', type=Path, required=True)
@@ -209,11 +300,17 @@ def main():
     parser.add_argument('--running-frames', type=Path, help='已经审阅的完整人物奔跑画面目录；默认保留当前奔跑')
     parser.add_argument('--running-only', action='store_true', help='仅重制左右奔跑，原样保留其余动作')
     parser.add_argument('--shake-frames', type=Path, help='仅替换生产导出器生成的完整摇头画面')
+    parser.add_argument('--smooth-existing', action='store_true', help='加密现有60Hz动作，120Hz画面和所有原采样保持不变')
     args = parser.parse_args()
     if args.oldpack.resolve() == args.output.resolve():
         parser.error('输出请使用新路径；全部完成后再替换正式帧包。')
     if not 60 <= args.rate <= 144:
         parser.error('制作频率需在60到144之间。')
+    if args.smooth_existing:
+        if args.shake_frames or args.running_only or args.running_frames:
+            parser.error('现有动作加密不能与重制姿势同时使用')
+        smooth_existing(args)
+        return
     if args.shake_frames:
         if args.running_only or args.running_frames:
             parser.error('摇头替换不能同时重制奔跑')

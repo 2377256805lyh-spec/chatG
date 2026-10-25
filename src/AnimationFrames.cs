@@ -14,7 +14,7 @@ namespace XiaoGDesktop
     internal sealed class AnimationFrames
     {
         internal const int Rate = 120;
-        private const int CacheFrames = 96, AheadFrames = 16;
+        private const int CacheFrames = 96;
         private readonly ZipArchive archive;
         private readonly string resourceName;
         private readonly bool heldCels;
@@ -29,6 +29,7 @@ namespace XiaoGDesktop
         private string[] requestedTimeline;
         private int requestedIndex;
         private bool requestedLoop;
+        private int requestedAhead;
         private bool preparing;
 
         internal AnimationFrames() : this("animation-frames.zip") { }
@@ -63,6 +64,13 @@ namespace XiaoGDesktop
 
         internal bool Contains(string name) { return timelines.ContainsKey(name); }
 
+        internal void Prepare(string name)
+        {
+            string[] timeline;
+            if (timelines.TryGetValue(name, out timeline))
+                PrepareAhead(timeline, -1, name == "run-left" || name == "run-right", rates[name]);
+        }
+
         internal bool TryGet(string name, double elapsed, out BitmapSource image)
         {
             image = null;
@@ -75,7 +83,7 @@ namespace XiaoGDesktop
                 (int)(heldCels || loop ? Math.Floor(frame + 1e-7) : Math.Round(frame))));
             string key = timeline[index];
             image = Load(key, archive, pixels, true);
-            PrepareAhead(timeline, index, loop);
+            PrepareAhead(timeline, index, loop, rates[name]);
             return true;
         }
 
@@ -121,11 +129,13 @@ namespace XiaoGDesktop
             return image;
         }
 
-        private void PrepareAhead(string[] timeline, int index, bool loop)
+        private void PrepareAhead(string[] timeline, int index, bool loop, double rate)
         {
             lock (cacheGate)
             {
                 requestedTimeline = timeline; requestedIndex = index; requestedLoop = loop;
+                // 按时间覆盖未来画面，长曝光也会提前读到下一个姿势。
+                requestedAhead = Math.Min(timeline.Length, Math.Max(16, (int)Math.Ceiling(rate * .40)));
                 if (preparing) return;
                 if (NextMissing() == null) return;
                 preparing = true;
@@ -157,7 +167,7 @@ namespace XiaoGDesktop
         // 调用方持有 cacheGate；重复曝光已在缓存中时直接跳过。
         private string NextMissing()
         {
-            for (int offset = 1; offset <= AheadFrames; offset++)
+            for (int offset = 1; offset <= requestedAhead; offset++)
             {
                 int next = requestedIndex + offset;
                 if (requestedLoop) next %= requestedTimeline.Length;

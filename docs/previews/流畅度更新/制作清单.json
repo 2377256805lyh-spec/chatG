@@ -1,0 +1,84 @@
+{
+  "assembly_sha256": "7c61074daeb6989b1af2772e929e43b13d3d2e190446a369f2bc277336facd19",
+  "preview_rate": 60,
+  "clips": {
+    "jump": {
+      "name": "跳跃",
+      "frames": 115,
+      "rate": 120.0,
+      "preview_frames": 57,
+      "duration": 0.95
+    },
+    "tiptoe": {
+      "name": "踮脚",
+      "frames": 217,
+      "rate": 120.0,
+      "preview_frames": 108,
+      "duration": 1.8
+    },
+    "thinking": {
+      "name": "思考",
+      "frames": 529,
+      "rate": 120.0,
+      "preview_frames": 264,
+      "duration": 4.4
+    },
+    "failed": {
+      "name": "沮丧",
+      "frames": 493,
+      "rate": 120.0,
+      "preview_frames": 246,
+      "duration": 4.1
+    },
+    "waiting": {
+      "name": "等待",
+      "frames": 582,
+      "rate": 120.0,
+      "preview_frames": 291,
+      "duration": 4.84
+    },
+    "review": {
+      "name": "检查",
+      "frames": 609,
+      "rate": 120.0,
+      "preview_frames": 304,
+      "duration": 5.06
+    },
+    "shake": {
+      "name": "摇头",
+      "frames": 313,
+      "rate": 120.0,
+      "preview_frames": 156,
+      "duration": 2.6
+    },
+    "run-right": {
+      "name": "向右奔跑",
+      "frames": 82,
+      "rate": 120.588235294118,
+      "preview_frames": 41,
+      "duration": 0.68
+    },
+    "run-left": {
+      "name": "向左奔跑",
+      "frames": 82,
+      "rate": 120.588235294118,
+      "preview_frames": 41,
+      "duration": 0.68
+    },
+    "sleepy": {
+      "name": "困困打盹",
+      "frames": 396,
+      "rate": 120,
+      "preview_frames": 198,
+      "duration": 3.3
+    },
+    "idea": {
+      "name": "灵光一闪",
+      "frames": 372,
+      "rate": 120,
+      "preview_frames": 186,
+      "duration": 3.1
+    }
+  },
+  "method": "production frame pack and final extra-action renderer; jump trajectory matches Main.cs"
+}

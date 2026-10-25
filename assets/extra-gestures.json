@@ -1,14 +1,14 @@
 {
-  "rate": 60,
+  "rate": 120,
   "size": [
     576,
     624
   ],
-  "method": "individually painted limb cels; timed held exposures; no joint interpolation",
+  "method": "painted limb-only cels; bidirectional small-step correspondence; fixed body; expressive holds retained",
   "clips": {
     "sleepy": {
-      "frames": 198,
-      "unique": 16,
+      "frames": 396,
+      "unique": 240,
       "painted_cels": 17,
       "duration": 3.3,
       "motion_exposure_ticks": [
@@ -26,8 +26,8 @@
       ]
     },
     "idea": {
-      "frames": 186,
-      "unique": 23,
+      "frames": 372,
+      "unique": 236,
       "painted_cels": 24,
       "duration": 3.1,
       "motion_exposure_ticks": [
@@ -90,9 +90,9 @@
     "assets/extra-gestures/painted/idea/cels/22.png": "c203f23efc7c5666cb4036957d363d86b07cecc6a10b47629c13c754aa2afce4",
     "assets/extra-gestures/painted/idea/cels/23.png": "9b86d34b3b8e139bd74e20eae1cccf36d04b4370745645270da7d02d81b403c1",
     "assets/extra-gestures/painted/idea/metadata.json": "9f4112d06c3593ff0de9ccdcd5758aa6b2545ea3c5b29c4184a54da5d700709a",
-    "scripts/make-painted-gestures.py": "2b6ada7ad27207b37d84aba2d6d7b4fe9c6da45506eb212803379953c8c9b080",
+    "scripts/make-painted-gestures.py": "d3ecf0e1cef1e8e09135ede4ef26d697b100eb88a5631c4dba826adc9419caad",
     "assets/extra-gestures/painted/sequence.json": "55bd805ccde3b1472dc59fab608d18154966d7384510531d4e6842a02400470f",
     "assets/thinking/pose-00.png": "1ed82f4d9bcf7b598f9bc3732775b63d688cf1be524e35bf1bca085404da6f41"
   },
-  "sha256": "7441e2b136c0db435e5b408c7775734e2cd487f426c7bda209a5980aa8bd112c"
+  "sha256": "f83757238d802bc764635e3007c4928c0f836c3274a43f1a7b71dac0d74c0338"
 }

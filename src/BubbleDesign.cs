@@ -7,14 +7,44 @@ using System.Windows.Shapes;
 
 namespace XiaoGDesktop
 {
+    internal sealed class BubbleCard : Grid
+    {
+        internal Path Tail;
+        internal Border Frame;
+        internal bool Below { get; private set; }
+
+        internal void SetBelow(bool value)
+        {
+            if (Below == value) return;
+            Below = value;
+            Tail.VerticalAlignment = value ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+            Tail.Margin = value ? new Thickness(0, 3, 58, 0) : new Thickness(0, 0, 58, 3);
+            Tail.RenderTransformOrigin = new Point(.5, .5);
+            Tail.RenderTransform = new ScaleTransform(1, value ? -1 : 1);
+            Frame.Margin = value ? new Thickness(5, 15, 5, 5) : new Thickness(5, 5, 5, 15);
+        }
+    }
+
     // 小G的银白、淡紫花结气泡：全部使用界面图形绘制，不增加图片依赖。
     internal static class BubbleDesign
     {
         internal const double Width = 236;
 
-        internal static FrameworkElement Create(string text)
+        internal static Point Locate(Rect area, Rect character, Size size, bool wasBelow, out bool below)
         {
-            Grid root = new Grid { Width = Width, Background = Brushes.Transparent };
+            double aboveY = character.Top - size.Height - 8;
+            double belowY = character.Bottom + 8;
+            below = aboveY < area.Top + (wasBelow ? 21 : 5) && belowY + size.Height <= area.Bottom - 5;
+            double maximumLeft = Math.Max(area.Left + 5, area.Right - size.Width - 5);
+            double maximumTop = Math.Max(area.Top + 5, area.Bottom - size.Height - 5);
+            return new Point(
+                Math.Max(area.Left + 5, Math.Min(maximumLeft, character.Left + character.Width / 2 - size.Width / 2)),
+                Math.Max(area.Top + 5, Math.Min(maximumTop, below ? belowY : aboveY)));
+        }
+
+        internal static BubbleCard Create(string text)
+        {
+            BubbleCard root = new BubbleCard { Width = Width, Background = Brushes.Transparent };
             Path tail = Shape("M 0,0 C 4,7 10,11 14,13 C 13,8 15,3 20,0 Z", "#EFE8F8", "#C5B3DB", 1);
             tail.Width = 20;
             tail.Height = 14;
@@ -23,6 +53,7 @@ namespace XiaoGDesktop
             tail.VerticalAlignment = VerticalAlignment.Bottom;
             tail.Margin = new Thickness(0, 0, 58, 3);
             root.Children.Add(tail);
+            root.Tail = tail;
 
             Border outer = new Border {
                 Margin = new Thickness(5, 5, 5, 15), CornerRadius = new CornerRadius(19),
@@ -31,6 +62,7 @@ namespace XiaoGDesktop
                 Effect = new DropShadowEffect { Color = ColorOf("#89709F"), BlurRadius = 7, ShadowDepth = 2, Opacity = 0.19 }
             };
             root.Children.Add(outer);
+            root.Frame = outer;
             Border inner = new Border {
                 Margin = new Thickness(3), CornerRadius = new CornerRadius(15),
                 BorderBrush = Brush("#E0D4EE"), BorderThickness = new Thickness(0.6)
@@ -111,7 +143,11 @@ namespace XiaoGDesktop
         {
             // 长句优先在逗号处换行，避免最后两个字挤成单独一行。
             int comma = text.IndexOf('，');
-            return text.Length > 12 && comma > 0 ? text.Insert(comma + 1, "\n") : text;
+            if (text.Length <= 12) return text;
+            if (comma > 0) return text.Insert(comma + 1, "\n");
+            // 无逗号的长句分成相近的两行，避免尾音符号独占一行。
+            int split = Math.Min(text.Length - 4, (int)Math.Ceiling(text.Length * .55));
+            return text.Insert(split, "\n");
         }
 
         private static Canvas Wings()

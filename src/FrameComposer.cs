@@ -13,6 +13,7 @@ namespace XiaoGDesktop
         internal readonly BitmapSource[,] Frames = new BitmapSource[11, PoseColumns];
         private readonly byte[,][] raw = new byte[11, PoseColumns][];
         private readonly BitmapSource[] blinks = new BitmapSource[3];
+        private readonly BlinkSurface idleBlink;
         private readonly BitmapSource[] thinkingBlinks = new BitmapSource[4];
         private readonly HeadMotion headMotion;
         private readonly byte[] restPixels;
@@ -84,12 +85,24 @@ namespace XiaoGDesktop
                     }
                 blinks[phase] = Bitmap(result);
             }
-            extraGestures = new ExtraGestureArtwork(blinks);
+            BlinkSequence blinkSequence = new BlinkSequence(Frames[0, 0], blinks);
+            idleBlink = new BlinkSurface(Frames[0, 0], blinkSequence);
+            extraGestures = new ExtraGestureArtwork(blinkSequence);
         }
 
         internal BitmapSource Blink(int phase) { return blinks[phase]; }
+        internal BitmapSource BlinkAt(double seconds)
+        {
+            return idleBlink.Frame(BlinkSequence.Sample(seconds, 0, .08, .08, .10));
+        }
         internal BitmapSource ExtraBody(string name, int eye) { return extraGestures.Body(name, eye); }
         internal BitmapSource ExtraArm(string name, double seconds) { return extraGestures.Arm(name, seconds); }
+
+        internal void PrepareAnimation(string name)
+        {
+            if (ExtraActions.Duration(name) > 0) extraGestures.Prepare(name);
+            else animationFrames.Prepare(name);
+        }
 
         internal BitmapSource Animation(string name, double elapsed)
         {

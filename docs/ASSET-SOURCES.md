@@ -13,7 +13,7 @@
 
 - `assets/xiaog-atlas.png`：角色图集和原始位置标尺。
 - `assets/artwork/`：当前程序使用的高清动作原画。
-- `assets/animation-frames.zip`：预制动画帧包，使用 Git LFS 管理；SHA-256 为 `3b264a7bb75107fed76a4ec9c855123df360917f5d52d2fafa18d93dfc838f1d`，各动作信息见 `assets/animation-frames.json`。
+- `assets/animation-frames.zip`：预制动画帧包，使用 Git LFS 管理；SHA-256 为 `d7b9e4debb85e0dde9a6b3e0ca781bd153c056edcfb9ba5e654d2134e37dbc3a`，各动作信息见 `assets/animation-frames.json`。
 - `assets/extra-gestures/painted/`：新动作的逐格原画、肢体层、定位记录与完整 ImageGen 提示词；`sequence.json` 记录曝光时间。`shy/` 为已移除动作的历史素材，不嵌入程序。
 - `assets/extra-gestures.zip`：困困打盹与灵光一闪的透明肢体帧包；身体底图和来源文件校验值见 `assets/extra-gestures.json`。
 - `assets/gaze/`、`assets/gaze-flow.bin` 及清单：转头原画、定位点与位移数据。
@@ -36,7 +36,16 @@
 
 `assets/thinking/` 保留思考原画、手臂轮廓和补制的遮挡底图；`artwork/thinking-layers.json` 保存输入及分层图校验值。借鉴 [AnimeInterp](https://github.com/lisiyao21/AnimeInterp) 按区域处理位置对应的思路，未使用其代码或模型。生成提示词随原画保留。
 
-困困打盹与灵光一闪使用内置 ImageGen 制作逐格肢体原画，提取手臂、手和袖子，身体与脸固定。运行时按曝光表播放预制素材，装饰由程序绘制。最初六姿势蒙皮流程仅作为历史制作资料保留，未用于当前两种动作的肢体补帧。
+困困打盹与灵光一闪使用内置 ImageGen 制作逐格肢体原画，提取手臂、手和袖子，身体与脸固定。随后只对独立肢体层增加连续过渡，保留揉眼与举指停留的时间表，装饰由程序绘制。最初六姿势蒙皮流程仅作为历史制作资料保留，未用于当前两种动作的肢体补帧。
+
+## 交互实现参考
+
+- [PixelPaws 的 PetEngine](https://github.com/jordansbc/pixelpaws/blob/main/src/DesktopPet/Engine/PetEngine.cs)：参考其集中处理状态进入、动作结束与拖动收尾的组织方式，小G将回到待机时的注视、眨眼、装饰和肢体图层复位合并处理。
+- [大肥鱼桌宠](https://github.com/1190fasheqi/dafeiyu-pet/blob/main/%E6%A1%8C%E5%AE%A0.py)：参考其人物菜单和托盘复用设置构建入口的做法，小G的托盘增加通往现有完整菜单的入口。
+
+以上为组织方式与交互思路参考，由本项目在现有 WPF 实现中独立完成。气泡上下避让、指向翻转和长句分行使用本项目现有花饰样式。
+
+全动作播放时序参考了 [WPF 的逐帧绘制说明](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-render-on-a-per-frame-interval-using-compositiontarget) 与 [RenderingEventArgs 的呈现时间定义](https://source.dot.net/PresentationCore/System/Windows/Media/RenderingEventArgs.cs.html)，并对照 [PixelPaws 的 SpriteAnimator](https://github.com/jordansbc/pixelpaws/blob/main/src/DesktopPet/Engine/SpriteAnimator.cs) 的按时间推进方式。小G用实际呈现时间推进动作，重复回调只处理一次；未复制这些项目的代码。相邻原帧的加密采用 OpenCV 的小位移匹配，限制位移并保留原透明像素，不将增加帧数等同于重画动作。
 
 ## 获取完整素材
 

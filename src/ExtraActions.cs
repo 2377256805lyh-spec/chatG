@@ -45,11 +45,7 @@ namespace XiaoGDesktop
 
         private static int Blink(double t, double start, double close, double hold, double open)
         {
-            t -= start;
-            if (t < 0 || t >= close + hold + open) return 0;
-            if (t < close) return 1;
-            if (t < close + hold) return 2;
-            return 3;
+            return BlinkSequence.Sample(t, start, close, hold, open);
         }
 
         internal static void Draw(DrawingContext dc, ExtraActionPose pose)

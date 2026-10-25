@@ -1,7 +1,9 @@
 ﻿param(
     [Parameter(Mandatory=$true)][string]$AssemblyPath,
     [Parameter(Mandatory=$true)][string]$Output,
-    [switch]$ShakeOnly
+    [switch]$ShakeOnly,
+    [switch]$AllActions,
+    [ValidateRange(1,144)][int]$FramesPerSecond = 60
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName PresentationCore,PresentationFramework,WindowsBase
@@ -16,10 +18,33 @@ try {
 } finally { $stream.Dispose() }
 $flags = [Reflection.BindingFlags]'Instance,Public,NonPublic'
 $type = $assembly.GetType('XiaoGDesktop.FrameComposer', $true)
-$constructor = $type.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imaging.BitmapSource]), $null)
-$composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject))
+if ($AllActions) {
+    $constructor = $type.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imaging.BitmapSource],[bool]), $null)
+    $composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject,$true))
+} else {
+    $constructor = $type.GetConstructor($flags, $null, [type[]]@([Windows.Media.Imaging.BitmapSource]), $null)
+    $composer = $constructor.Invoke([object[]]@($sheet.PSObject.BaseObject))
+}
 $frames = $type.GetField('Frames', $flags).GetValue($composer)
 [IO.Directory]::CreateDirectory([IO.Path]::GetFullPath($Output)) | Out-Null
+if ($AllActions) {
+    if ($ShakeOnly) { throw 'AllActions不能与ShakeOnly同时使用。' }
+    $method = $type.GetMethod('Animation', $flags)
+    foreach ($clip in @(@('jump',.95),@('tiptoe',1.8),@('thinking',4.4),@('failed',4.1),@('waiting',4.84),@('review',5.06),@('shake',2.6),@('run-right',.68),@('run-left',.68))) {
+        $folder = Join-Path $Output $clip[0]
+        [IO.Directory]::CreateDirectory([IO.Path]::GetFullPath($folder)) | Out-Null
+        $count = [int][Math]::Ceiling($clip[1]*$FramesPerSecond)
+        for ($i=0; $i -lt $count; $i++) {
+            $image = $method.Invoke($composer, [object[]]@($clip[0],[double]($i/$FramesPerSecond)))
+            $encoder = New-Object Windows.Media.Imaging.PngBitmapEncoder
+            $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($image))
+            $file = [IO.File]::Create((Join-Path $folder ('{0:0000}.png' -f $i)))
+            try { $encoder.Save($file) } finally { $file.Dispose() }
+        }
+        Write-Output ($clip[0]+': '+$count+' PNG')
+    }
+    return
+}
 if ($ShakeOnly) {
     $shake = $type.GetMethod('Shake', $flags)
     for ($i=0; $i -le 312; $i++) {
