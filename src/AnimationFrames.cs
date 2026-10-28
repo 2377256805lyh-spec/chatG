@@ -31,6 +31,14 @@ namespace XiaoGDesktop
         private bool requestedLoop;
         private int requestedAhead;
         private bool preparing;
+        private string[] displayedTimeline, preparedTimeline;
+        private double displayedElapsed = double.NegativeInfinity;
+        private int previousIndex = -1, displayedIndex = -1;
+        private long displayedCycle = -1;
+        private BitmapSource displayedImage;
+
+        // 生产导出默认同步；桌面播放显式启用后，界面线程只读取已准备的画面。
+        internal bool Realtime { get; set; }
 
         internal AnimationFrames() : this("animation-frames.zip") { }
 
@@ -68,7 +76,10 @@ namespace XiaoGDesktop
         {
             string[] timeline;
             if (timelines.TryGetValue(name, out timeline))
-                PrepareAhead(timeline, -1, name == "run-left" || name == "run-right", rates[name]);
+            {
+                lock (cacheGate) preparedTimeline = timeline;
+                PrepareAhead(timeline, 0, name == "run-left" || name == "run-right", rates[name]);
+            }
         }
 
         internal bool TryGet(string name, double elapsed, out BitmapSource image)
@@ -78,11 +89,48 @@ namespace XiaoGDesktop
             if (!timelines.TryGetValue(name, out timeline)) return false;
             bool loop = name == "run-left" || name == "run-right";
             double frame = Math.Max(0, elapsed) * rates[name];
+            long cycle = loop ? (long)Math.Floor(frame / timeline.Length) : 0;
+            if (loop) frame %= timeline.Length;
             // 循环帧表示完整曝光区间；四舍五入会让首帧减半、尾帧多停半帧。
             int index = Math.Max(0, Math.Min(timeline.Length - 1,
                 (int)(heldCels || loop ? Math.Floor(frame + 1e-7) : Math.Round(frame))));
             string key = timeline[index];
-            image = Load(key, archive, pixels, true);
+            if (Realtime)
+            {
+                lock (cacheGate)
+                {
+                    // 动作切换、显式重播或循环回绕，都不能沿用上一段播放的旧姿势。
+                    bool restarted = !ReferenceEquals(displayedTimeline, timeline) || ReferenceEquals(preparedTimeline, timeline)
+                        || cycle != displayedCycle || elapsed < displayedElapsed || index < previousIndex;
+                    if (restarted) { displayedImage = null; displayedIndex = -1; }
+                    if (ReferenceEquals(preparedTimeline, timeline)) preparedTimeline = null;
+                    displayedTimeline = timeline;
+                    displayedElapsed = elapsed;
+                    displayedCycle = cycle;
+                    previousIndex = index;
+                    if (cache.TryGetValue(key, out image))
+                    {
+                        order.Remove(positions[key]); order.AddLast(positions[key]);
+                        if (index >= displayedIndex) { displayedImage = image; displayedIndex = index; }
+                    }
+                    else
+                    {
+                        // 解码略慢时，取本段播放已经走过且比当前显示更新的最近画面。
+                        // 只等精确索引会一直追着过期请求跑，冷启动时可能全程不首显。
+                        for (int previous = index - 1; previous > displayedIndex; previous--)
+                        {
+                            string ready = timeline[previous];
+                            if (!cache.TryGetValue(ready, out image)) continue;
+                            order.Remove(positions[ready]); order.AddLast(positions[ready]);
+                            displayedImage = image;
+                            displayedIndex = previous;
+                            break;
+                        }
+                        if (image == null) image = displayedImage;
+                    }
+                }
+            }
+            else image = Load(key, archive, pixels, true);
             PrepareAhead(timeline, index, loop, rates[name]);
             return true;
         }
@@ -135,7 +183,9 @@ namespace XiaoGDesktop
             {
                 requestedTimeline = timeline; requestedIndex = index; requestedLoop = loop;
                 // 按时间覆盖未来画面，长曝光也会提前读到下一个姿势。
-                requestedAhead = Math.Min(timeline.Length, Math.Max(16, (int)Math.Ceiling(rate * .40)));
+                // 包含当前帧后，总窗口不能超过缓存，否则满窗会互相驱逐并反复读取。
+                requestedAhead = Math.Min(timeline.Length - 1,
+                    Math.Min(CacheFrames - 1, Math.Max(16, (int)Math.Ceiling(rate * .40))));
                 if (preparing) return;
                 if (NextMissing() == null) return;
                 preparing = true;
@@ -167,7 +217,8 @@ namespace XiaoGDesktop
         // 调用方持有 cacheGate；重复曝光已在缓存中时直接跳过。
         private string NextMissing()
         {
-            for (int offset = 1; offset <= requestedAhead; offset++)
+            // 当前请求优先，随后才读未来画面；尚未准备好也不会让界面去解压。
+            for (int offset = 0; offset <= requestedAhead; offset++)
             {
                 int next = requestedIndex + offset;
                 if (requestedLoop) next %= requestedTimeline.Length;

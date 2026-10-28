@@ -42,6 +42,7 @@ $arguments = @(
     (Join-Path $sourceFolder 'AnimationFrames.cs'),
     (Join-Path $sourceFolder 'FrameComposer.cs'), (Join-Path $sourceFolder 'CodexLink.cs'),
     (Join-Path $sourceFolder 'HeadMotion.cs'),
+    (Join-Path $sourceFolder 'GazeRenderer.cs'),
     (Join-Path $sourceFolder 'SourceArtwork.cs'),
     (Join-Path $sourceFolder 'PoseMotion.cs'),
     (Join-Path $sourceFolder 'GestureLayers.cs'),
@@ -49,6 +50,7 @@ $arguments = @(
     (Join-Path $sourceFolder 'VoiceClips.cs')
     (Join-Path $sourceFolder 'ExtraActions.cs')
     (Join-Path $sourceFolder 'ExtraGestureArtwork.cs')
+    (Join-Path $sourceFolder 'FocusSession.cs')
 )
 $framePack = Join-Path $assetFolder 'animation-frames.zip'
 if (Test-Path -LiteralPath $framePack) { $arguments += '/resource:' + $framePack + ',animation-frames.zip' }

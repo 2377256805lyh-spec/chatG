@@ -19,6 +19,7 @@ namespace XiaoGDesktop
         private readonly byte[] restPixels;
         private readonly AnimationFrames animationFrames = new AnimationFrames();
         private readonly ExtraGestureArtwork extraGestures;
+        private GazeRenderer realtimeGaze;
         private readonly Dictionary<int, BitmapSource> cache = new Dictionary<int, BitmapSource>();
         private readonly Queue<int> cacheOrder = new Queue<int>();
         private readonly Dictionary<int, PoseMotion> motions = new Dictionary<int, PoseMotion>();
@@ -98,6 +99,19 @@ namespace XiaoGDesktop
         internal BitmapSource ExtraBody(string name, int eye) { return extraGestures.Body(name, eye); }
         internal BitmapSource ExtraArm(string name, double seconds) { return extraGestures.Arm(name, seconds); }
 
+        // 只有实际桌面窗口启用；生产导出器仍逐张同步取图，不能把缺帧兜底画面导出成素材。
+        internal void EnableRealtime()
+        {
+            animationFrames.Realtime = true;
+            extraGestures.EnableRealtime();
+            realtimeGaze = new GazeRenderer(headMotion, Frames[0, 0]);
+        }
+
+        internal void ResetGaze()
+        {
+            if (realtimeGaze != null) realtimeGaze.Reset();
+        }
+
         internal void PrepareAnimation(string name)
         {
             if (ExtraActions.Duration(name) > 0) extraGestures.Prepare(name);
@@ -107,19 +121,19 @@ namespace XiaoGDesktop
         internal BitmapSource Animation(string name, double elapsed)
         {
             bool running = name == "run-right" || name == "run-left";
-            if (running) elapsed = Math.Max(0, elapsed) % .68;
-            else
+            if (!running)
             {
                 double duration = name == "tiptoe" ? 1.80 : name == "thinking" ? 4.40 : name == "failed" ? 4.10
                     : name == "waiting" ? 4.84 : name == "review" ? 5.06 : name == "jump" ? .95 : name == "shake" ? 2.60 : 0;
                 if (elapsed >= duration) return Frames[0, 0];
             }
             BitmapSource prepared;
-            if (animationFrames.TryGet(name, elapsed, out prepared)) return prepared;
+            if (animationFrames.TryGet(name, elapsed, out prepared)) return prepared ?? Frames[0, 0];
             if (name == "thinking") return Thinking(elapsed);
             if (name == "tiptoe") return Tiptoe(elapsed);
             if (running)
             {
+                elapsed = Math.Max(0, elapsed) % .68;
                 int row = name == "run-right" ? 1 : 2;
                 double position = elapsed / .085;
                 int pose = (int)position % 8;
@@ -283,6 +297,7 @@ namespace XiaoGDesktop
         {
             strength = Math.Max(0, Math.Min(StrengthSteps, strength));
             direction = (direction % DirectionCount + DirectionCount) % DirectionCount;
+            if (realtimeGaze != null) return realtimeGaze.Get(direction, strength);
             if (strength == 0) return Frames[0, 0];
             // 注视使用负键，方向加密后也不会与正键的动作补帧缓存相撞。
             int key = -1 - direction * (StrengthSteps + 1) - strength;

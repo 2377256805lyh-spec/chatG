@@ -70,7 +70,7 @@ namespace XiaoGDesktop
         }
     }
 
-    public sealed class Companion : Window
+    public sealed partial class Companion : Window
     {
         private const int CellWidth = 192, CellHeight = 208;
         private const double Headroom = 64;
@@ -95,10 +95,11 @@ namespace XiaoGDesktop
         private HwndSource source;
         private double nextBlink, blinkStart = -1, actionStart = -1, actionTime;
         private string action = "idle";
+        private string pendingAction;
         private int currentRow = -1, currentColumn = -1, gaze, dragDirection = 1, cycleIndex;
         private bool pressed, dragging, saveWarningShown, gazeActive, secondClick, firstActionFrame;
         private double gazeAngle, gazeStrength, lastGazeInside, pendingClickAt = -1;
-        private double resumeGazeAt, dragPhase, lastDragMotion;
+        private double resumeGazeAt, dragPhase, lastDragMotion, lastDragSample, dragSpeed, dragPace;
         private TimeSpan lastPresentation = TimeSpan.MinValue;
         private Point pendingClickScreen;
         private int interactions, speechThreshold, previousPhrase = -1;
@@ -176,6 +177,8 @@ namespace XiaoGDesktop
             Closing += delegate { SavePreferences(); };
             Closed += delegate
             {
+                EndFocus();
+                artwork.ResetGaze();
                 CompositionTarget.Rendering -= Render;
                 if (source != null) source.RemoveHook(WindowHook);
                 if (tray != null) { tray.Visible = false; tray.Dispose(); }
@@ -245,6 +248,7 @@ namespace XiaoGDesktop
             }
             sheet.Freeze();
             artwork = new FrameComposer(sheet, true);
+            artwork.EnableRealtime();
             frames = artwork.Frames;
         }
 
@@ -353,6 +357,7 @@ namespace XiaoGDesktop
             pressLeft = Left;
             pressTop = Top;
             double now = clock.Elapsed.TotalSeconds;
+            lastDragSample = now;
             System.Drawing.Size tolerance = Forms.SystemInformation.DoubleClickSize;
             secondClick = pendingClickAt >= 0 && (now - pendingClickAt) * 1000 <= ClickWindowMilliseconds() &&
                 Math.Abs(pressScreen.X - pendingClickScreen.X) <= Math.Max(6, tolerance.Width / 2) &&
@@ -375,17 +380,23 @@ namespace XiaoGDesktop
             {
                 ReturnToIdle();
                 dragPhase = 0;
+                dragSpeed = dragPace = 0;
             }
             dragging = true;
             pendingClickAt = -1;
             secondClick = false;
             if ((now - lastMotionScreen).LengthSquared >= 1)
             {
-                lastDragMotion = clock.Elapsed.TotalSeconds;
+                double sampleTime = clock.Elapsed.TotalSeconds;
+                Vector travel = source.CompositionTarget.TransformFromDevice.Transform(now - lastMotionScreen);
+                double sampleLength = Math.Max(.004, sampleTime - lastDragSample);
+                // 按人物本身的尺度估计拖动速度，放大后不会因此跑得更快。
+                dragSpeed = Math.Min(1400, travel.Length / sampleLength * CellWidth / preferences.Size);
+                lastDragMotion = lastDragSample = sampleTime;
                 lastMotionScreen = now;
             }
             double horizontal = now.X - lastDragScreen.X;
-            if (Math.Abs(horizontal) > 2)
+            if (Math.Abs(horizontal) > 4)
             {
                 int direction = horizontal < 0 ? -1 : 1;
                 if (direction != dragDirection || dragPhase == 0)
@@ -435,6 +446,8 @@ namespace XiaoGDesktop
         private void ReturnToIdle()
         {
             action = "idle";
+            pendingAction = null;
+            artwork.ResetGaze();
             firstActionFrame = false;
             blinkStart = -1;
             gazeStrength = 0;
@@ -450,12 +463,28 @@ namespace XiaoGDesktop
             ScheduleBlink();
         }
 
+        private void CompleteAction()
+        {
+            string next = pendingAction;
+            ReturnToIdle();
+            if (next != null) StartAction(next);
+        }
+
         private void StartAction(string value)
         {
             pendingClickAt = -1;
             if (value == "idle") { ReturnToIdle(); return; }
             // 跳跃过程中不因连点重新起跳；其他动作可以随时切换。
             if (action == "jump" && value == "jump") return;
+            // 空中不突然换成站立姿势；只保留最近一次请求，落地后立即接上。
+            if (action == "jump")
+            {
+                pendingAction = value;
+                artwork.PrepareAnimation(value);
+                return;
+            }
+            pendingAction = null;
+            artwork.ResetGaze();
             action = value;
             actionStart = clock.Elapsed.TotalSeconds;
             firstActionFrame = true;
@@ -527,19 +556,21 @@ namespace XiaoGDesktop
         {
             RenderingEventArgs presentation = e as RenderingEventArgs;
             if (presentation == null || presentation.RenderingTime == lastPresentation) return;
-            double delta = lastPresentation == TimeSpan.MinValue ? 1.0 / 60
-                : Math.Max(0, Math.Min(.10, (presentation.RenderingTime - lastPresentation).TotalSeconds));
+            double frameDelta = lastPresentation == TimeSpan.MinValue ? 1.0 / 60
+                : Math.Max(0, (presentation.RenderingTime - lastPresentation).TotalSeconds);
+            double delta = Math.Min(.10, frameDelta);
             lastPresentation = presentation.RenderingTime;
             double time = clock.Elapsed.TotalSeconds;
             if (pendingClickAt >= 0 && !pressed && (time - pendingClickAt) * 1000 >= ClickWindowMilliseconds())
                 ConfirmSingleClick();
             UpdateBubble(time);
+            UpdateFocus(time);
             // 每次实际绘制按时间选帧；不再叠加60/120Hz取整，避免与屏幕刷新节奏拍频。
             if (action != "idle")
             {
                 // 首帧补上输入到绘制的时间；之后沿屏幕呈现时间推进，避免解压耗时扰动动作节奏。
                 if (firstActionFrame) { actionTime = Math.Max(0, time - actionStart); firstActionFrame = false; }
-                else actionTime += delta;
+                else actionTime += frameDelta;
             }
             double elapsed = actionTime;
             double ratio = preferences.Size / CellWidth;
@@ -554,12 +585,14 @@ namespace XiaoGDesktop
             }
             if (dragging)
             {
-                if (time - lastDragMotion < .12)
+                double targetPace = time - lastDragMotion < .12 ? Math.Max(.55, Math.Min(1.5, .55 + dragSpeed / 500)) : 0;
+                dragPace += (targetPace - dragPace) * (1 - Math.Exp(-delta / (targetPace > dragPace ? .07 : .09)));
+                if (targetPace > 0 || dragPace > .08)
                 {
-                    dragPhase += delta;
+                    dragPhase += delta * dragPace;
                     ShowFrame(artwork.Animation(dragDirection > 0 ? "run-right" : "run-left", dragPhase));
                 }
-                else { dragPhase = 0; ShowFrame(frames[0, 0]); }
+                else ShowFrame(frames[0, 0]);
                 return;
             }
             if (ExtraActions.Duration(action) > 0)
@@ -570,9 +603,12 @@ namespace XiaoGDesktop
                 }
                 else
                 {
+                    BitmapSource arm = artwork.ExtraArm(action, elapsed);
+                    // 后台尚未准备好首帧时保留完整人物，不能先显示擦掉手臂的底图。
+                    if (arm == null) return;
                     ExtraActionPose pose = ExtraActions.Sample(action, elapsed);
                     ShowFrame(artwork.ExtraBody(action, pose.Eye));
-                    currentLimb = artwork.ExtraArm(action, elapsed);
+                    currentLimb = arm;
                     limbPortrait.Source = currentLimb;
                     inclination.Angle = pose.Angle;
                     movement.Y = pose.OffsetY * ratio;
@@ -601,7 +637,7 @@ namespace XiaoGDesktop
                     double settle = 1 - progress * progress * (3 - 2 * progress);
                     movement.Y = -ratio * settle + 1.4 * ratio * Math.Sin(progress * Math.PI);
                 }
-                else ReturnToIdle();
+                else CompleteAction();
             }
             else if (action == "tiptoe")
             {
@@ -663,6 +699,11 @@ namespace XiaoGDesktop
             int index;
             do { index = random.Next(phrases.Length); } while (index == previousPhrase);
             previousPhrase = index;
+            SpeakPhrase(index);
+        }
+
+        private void SpeakPhrase(int index)
+        {
             if (bubble != null) bubble.Close();
             bubble = new SpeechBubble(this, phrases[index]);
             bubble.SizeChanged += delegate { PositionBubble(); };
@@ -755,6 +796,7 @@ namespace XiaoGDesktop
             MenuItem linked = AddMenuItem(menu, "随桌面 Codex 启动", ToggleCodexLink);
             linked.IsCheckable = true;
             linked.IsChecked = CodexLink.Enabled;
+            menu.Items.Add(CreateFocusMenu());
             menu.Items.Add(new Separator());
             MenuItem actions = new MenuItem { Header = "播放动作" };
             string[] names = { "跳一下", "踮踮脚", "等等你", "想一想", "检查一下", "小沮丧", "摇摇头", "困困打盹", "灵光一闪", "回到待机" };
@@ -791,6 +833,7 @@ namespace XiaoGDesktop
             Forms.ContextMenuStrip menu = new Forms.ContextMenuStrip();
             menu.Items.Add("把小G移回主屏", null, delegate { Dispatcher.Invoke(new Action(ReturnHome)); });
             menu.Items.Add("全部设置和动作…", null, delegate { Dispatcher.BeginInvoke(new Action(OpenMenu)); });
+            menu.Items.Add(CreateFocusTrayMenu());
             menu.Items.Add(new Forms.ToolStripSeparator());
             Forms.ToolStripMenuItem keepOnTop = new Forms.ToolStripMenuItem("始终置顶");
             keepOnTop.Checked = Topmost;

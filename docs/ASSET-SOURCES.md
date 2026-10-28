@@ -47,6 +47,10 @@
 
 全动作播放时序参考了 [WPF 的逐帧绘制说明](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-render-on-a-per-frame-interval-using-compositiontarget) 与 [RenderingEventArgs 的呈现时间定义](https://source.dot.net/PresentationCore/System/Windows/Media/RenderingEventArgs.cs.html)，并对照 [PixelPaws 的 SpriteAnimator](https://github.com/jordansbc/pixelpaws/blob/main/src/DesktopPet/Engine/SpriteAnimator.cs) 的按时间推进方式。小G用实际呈现时间推进动作，重复回调只处理一次；未复制这些项目的代码。相邻原帧的加密采用 OpenCV 的小位移匹配，限制位移并保留原透明像素，不将增加帧数等同于重画动作。
 
+2026-10-28 的运行逻辑更新进一步参考 [VPet 的 PNGAnimation 后台取图与播放控制检查](https://github.com/LorisYounger/VPet/blob/main/VPet-Simulator.Core/Graph/PNGAnimation.cs#L250-L289)：将计算与解压移出界面回调，转头只保留最新待执行请求，切换动作后拒绝旧会话的结果；参考 [VPet 的动作收尾衔接](https://github.com/LorisYounger/VPet/blob/main/VPet-Simulator.Core/Display/MainDisplay.cs#L88-L107)，让跳跃落地后再接最近一次动作选择。该做法在小G现有结构中独立实现，没有引入 VPet 框架、素材或逐帧睡眠循环。线程间图像使用 [WPF 官方说明的冻结对象共享机制](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/freezable-objects-overview)。
+
+本次未增加动画采样或修改人物原画。拖动步频、停顿后继续步态、专注计时及计时通知由本项目现有交互与声音资源实现。奔跑交叉步和等待、检查的旧轮廓重叠仍属于原画问题。
+
 ## 获取完整素材
 
 安装 Git LFS 后，在仓库目录运行 `git lfs pull` 可下载动画帧包的实际内容。
