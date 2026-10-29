@@ -25,10 +25,11 @@ namespace XiaoGDesktop
         [DataMember] public bool Topmost = true;
         [DataMember] public bool Speech = true;
         [DataMember] public bool Voice = true;
+        [DataMember] public bool NaturalIdle = true;
         [DataMember] public int VoiceVolume = 55;
         [OnDeserializing] private void Defaults(StreamingContext context)
         {
-            Size = 224; Left = Top = double.NaN; Topmost = Speech = Voice = true; VoiceVolume = 55;
+            Size = 224; Left = Top = double.NaN; Topmost = Speech = Voice = NaturalIdle = true; VoiceVolume = 55;
         }
     }
 
@@ -161,6 +162,7 @@ namespace XiaoGDesktop
             ApplySize();
             SetFrame(0, 0);
             ScheduleBlink();
+            ScheduleIdle();
             speechThreshold = random.Next(5, 8);
 
             MouseMove += OnMouseMove;
@@ -348,6 +350,7 @@ namespace XiaoGDesktop
         {
             NativePoint cursor;
             if (!GetCursorPos(out cursor)) return;
+            WakeForInteraction();
             pressed = true;
             artwork.PrepareAnimation("jump");
             dragging = false;
@@ -445,6 +448,7 @@ namespace XiaoGDesktop
 
         private void ReturnToIdle()
         {
+            ResetIdleBehavior();
             action = "idle";
             pendingAction = null;
             artwork.ResetGaze();
@@ -473,6 +477,7 @@ namespace XiaoGDesktop
         private void StartAction(string value)
         {
             pendingClickAt = -1;
+            if (value == "rest") { BeginRest(); return; }
             if (value == "idle") { ReturnToIdle(); return; }
             // 跳跃过程中不因连点重新起跳；其他动作可以随时切换。
             if (action == "jump" && value == "jump") return;
@@ -484,6 +489,7 @@ namespace XiaoGDesktop
                 return;
             }
             pendingAction = null;
+            ResetIdleBehavior();
             artwork.ResetGaze();
             action = value;
             actionStart = clock.Elapsed.TotalSeconds;
@@ -606,7 +612,7 @@ namespace XiaoGDesktop
                     BitmapSource arm = artwork.ExtraArm(action, elapsed);
                     // 后台尚未准备好首帧时保留完整人物，不能先显示擦掉手臂的底图。
                     if (arm == null) return;
-                    ExtraActionPose pose = ExtraActions.Sample(action, elapsed);
+                    ExtraActionPose pose = ExtraActions.Sample(action, artwork.ExtraArmTime);
                     ShowFrame(artwork.ExtraBody(action, pose.Eye));
                     currentLimb = arm;
                     limbPortrait.Source = currentLimb;
@@ -618,26 +624,29 @@ namespace XiaoGDesktop
             else if (action == "jump")
             {
                 const double preparation = JumpPreparation, flight = 0.72, landing = 0.14;
-                if (elapsed < preparation)
+                if (elapsed >= preparation + flight + landing) CompleteAction();
+                else
                 {
                     ShowFrame(artwork.Animation("jump", elapsed));
-                    double progress = elapsed / preparation;
-                    movement.Y = -ratio * progress * progress * (3 - 2 * progress);
+                    // 位移与实际解出的姿势同步，不让尚在准备的身体先飞向空中。
+                    double shown = Math.Max(0, Math.Min(elapsed, artwork.AnimationTime));
+                    if (shown < preparation)
+                    {
+                        double progress = shown / preparation;
+                        movement.Y = -ratio * progress * progress * (3 - 2 * progress);
+                    }
+                    else if (shown < preparation + flight)
+                    {
+                        double progress = (shown - preparation) / flight;
+                        movement.Y = -ratio - 4 * 36 * ratio * progress * (1 - progress);
+                    }
+                    else
+                    {
+                        double progress = (shown - preparation - flight) / landing;
+                        double settle = 1 - progress * progress * (3 - 2 * progress);
+                        movement.Y = -ratio * settle + 1.4 * ratio * Math.Sin(progress * Math.PI);
+                    }
                 }
-                else if (elapsed < preparation + flight)
-                {
-                    double progress = (elapsed - preparation) / flight;
-                    ShowFrame(artwork.Animation("jump", elapsed));
-                    movement.Y = -ratio - 4 * 36 * ratio * progress * (1 - progress);
-                }
-                else if (elapsed < preparation + flight + landing)
-                {
-                    double progress = (elapsed - preparation - flight) / landing;
-                    ShowFrame(artwork.Animation("jump", elapsed));
-                    double settle = 1 - progress * progress * (3 - 2 * progress);
-                    movement.Y = -ratio * settle + 1.4 * ratio * Math.Sin(progress * Math.PI);
-                }
-                else CompleteAction();
             }
             else if (action == "tiptoe")
             {
@@ -674,7 +683,10 @@ namespace XiaoGDesktop
             }
             if (action == "idle")
             {
+                if (RenderRest(time)) return;
                 UpdateGaze(time, delta);
+                UpdateIdleBehavior(time);
+                if (action != "idle") return;
                 if (blinkStart < 0 && time >= nextBlink && gazeStrength < 0.06) blinkStart = time;
                 if (blinkStart >= 0)
                 {
@@ -771,6 +783,8 @@ namespace XiaoGDesktop
         {
             pendingClickAt = -1;
             ContextMenu menu = new ContextMenu();
+            menuOpen = true;
+            menu.Closed += delegate { menuOpen = false; ScheduleIdle(); };
             AddMenuItem(menu, "放大一点（5%）", delegate { ResizeBy(1.05); });
             AddMenuItem(menu, "缩小一点（5%）", delegate { ResizeBy(1 / 1.05); });
             MenuItem onTop = AddMenuItem(menu, "始终置顶", delegate { Topmost = !Topmost; SavePreferences(); });
@@ -797,6 +811,7 @@ namespace XiaoGDesktop
             linked.IsCheckable = true;
             linked.IsChecked = CodexLink.Enabled;
             menu.Items.Add(CreateFocusMenu());
+            menu.Items.Add(CreateIdleMenu());
             menu.Items.Add(new Separator());
             MenuItem actions = new MenuItem { Header = "播放动作" };
             string[] names = { "跳一下", "踮踮脚", "等等你", "想一想", "检查一下", "小沮丧", "摇摇头", "困困打盹", "灵光一闪", "回到待机" };
@@ -834,6 +849,9 @@ namespace XiaoGDesktop
             menu.Items.Add("把小G移回主屏", null, delegate { Dispatcher.Invoke(new Action(ReturnHome)); });
             menu.Items.Add("全部设置和动作…", null, delegate { Dispatcher.BeginInvoke(new Action(OpenMenu)); });
             menu.Items.Add(CreateFocusTrayMenu());
+            menu.Items.Add(CreateIdleTrayMenu());
+            menu.Opening += delegate { menuOpen = true; pendingClickAt = -1; };
+            menu.Closed += delegate { menuOpen = false; ScheduleIdle(); };
             menu.Items.Add(new Forms.ToolStripSeparator());
             Forms.ToolStripMenuItem keepOnTop = new Forms.ToolStripMenuItem("始终置顶");
             keepOnTop.Checked = Topmost;

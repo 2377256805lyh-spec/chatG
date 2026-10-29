@@ -52,7 +52,7 @@ namespace XiaoGDesktop
         {
             if (pose.Name == null) return;
             double t = pose.Time, amount = pose.Strength;
-            if (pose.Name == "sleepy")
+            if (pose.Name == "sleepy" || pose.Name == "rest")
             {
                 for (int i = 0; i < 3; i++)
                 {

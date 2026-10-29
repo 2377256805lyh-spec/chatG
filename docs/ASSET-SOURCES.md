@@ -51,6 +51,10 @@
 
 本次未增加动画采样或修改人物原画。拖动步频、停顿后继续步态、专注计时及计时通知由本项目现有交互与声音资源实现。奔跑交叉步和等待、检查的旧轮廓重叠仍属于原画问题。
 
+后续自然待机更新参考 [PixelPaws 的 StateMachine](https://github.com/jordansbc/pixelpaws/blob/main/src/DesktopPet/Engine/StateMachine.cs) 将待机时长与行为选择分开的组织方式，以及 [PetEngine](https://github.com/jordansbc/pixelpaws/blob/main/src/DesktopPet/Engine/PetEngine.cs) 中主动交互优先和安静状态的处理思路。小G独立实现较低频的随机待机、同种行为不连播、专注时抑制和可叫醒的小憩；未引入其键盘监听、系统监控、行走物理或联网功能。
+
+同次更新在原有后台预读里优先准备接下来几次屏幕呈现需要的采样，再填中间帧；手臂、眼睑、装饰及跳跃位置统一跟随实际显示的姿势时间。对照 [Shijima 的 tick 与重绘条件](https://github.com/pixelomer/Shijima-Qt/blob/main/ShijimaWidget.cc#L229-L254)，保留同一张有效画面而不在奔跑回绕时切回中性图。以上是本项目的取图顺序和组合绘制修改，没有复制第三方代码，也未新增原画或插值帧。
+
 ## 获取完整素材
 
 安装 Git LFS 后，在仓库目录运行 `git lfs pull` 可下载动画帧包的实际内容。

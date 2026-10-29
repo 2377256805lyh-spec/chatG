@@ -39,6 +39,7 @@ namespace XiaoGDesktop
         internal void Prepare(string name) { arms.Prepare(name); }
 
         internal void EnableRealtime() { arms.Realtime = true; }
+        internal double SampleTime { get { return arms.SampleTime; } }
 
         internal BitmapSource Arm(string name, double seconds)
         {

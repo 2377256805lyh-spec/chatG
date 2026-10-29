@@ -30,15 +30,19 @@ namespace XiaoGDesktop
         private int requestedIndex;
         private bool requestedLoop;
         private int requestedAhead;
+        private int requestedStep = 1;
         private bool preparing;
         private string[] displayedTimeline, preparedTimeline;
         private double displayedElapsed = double.NegativeInfinity;
         private int previousIndex = -1, displayedIndex = -1;
         private long displayedCycle = -1;
         private BitmapSource displayedImage;
+        private double displayedSample;
 
         // 生产导出默认同步；桌面播放显式启用后，界面线程只读取已准备的画面。
         internal bool Realtime { get; set; }
+        // 与当前返回图像一致的时间，供手臂、眼睑、装饰及跳跃位移共用。
+        internal double SampleTime { get; private set; }
 
         internal AnimationFrames() : this("animation-frames.zip") { }
 
@@ -95,14 +99,25 @@ namespace XiaoGDesktop
             int index = Math.Max(0, Math.Min(timeline.Length - 1,
                 (int)(heldCels || loop ? Math.Floor(frame + 1e-7) : Math.Round(frame))));
             string key = timeline[index];
+            int step = 1;
+            SampleTime = elapsed;
             if (Realtime)
             {
                 lock (cacheGate)
                 {
+                    if (ReferenceEquals(displayedTimeline, timeline) && elapsed > displayedElapsed)
+                        step = Math.Max(1, Math.Min(8, (int)Math.Round((elapsed - displayedElapsed) * rates[name])));
                     // 动作切换、显式重播或循环回绕，都不能沿用上一段播放的旧姿势。
                     bool restarted = !ReferenceEquals(displayedTimeline, timeline) || ReferenceEquals(preparedTimeline, timeline)
                         || cycle != displayedCycle || elapsed < displayedElapsed || index < previousIndex;
-                    if (restarted) { displayedImage = null; displayedIndex = -1; }
+                    // 连续奔跑的自然回绕可以短暂保留末帧，不必闪回站立姿势。
+                    bool nextCycle = loop && ReferenceEquals(displayedTimeline, timeline)
+                        && !ReferenceEquals(preparedTimeline, timeline) && cycle == displayedCycle + 1 && elapsed >= displayedElapsed;
+                    if (restarted)
+                    {
+                        if (!nextCycle) { displayedImage = null; displayedSample = 0; }
+                        displayedIndex = -1;
+                    }
                     if (ReferenceEquals(preparedTimeline, timeline)) preparedTimeline = null;
                     displayedTimeline = timeline;
                     displayedElapsed = elapsed;
@@ -111,7 +126,7 @@ namespace XiaoGDesktop
                     if (cache.TryGetValue(key, out image))
                     {
                         order.Remove(positions[key]); order.AddLast(positions[key]);
-                        if (index >= displayedIndex) { displayedImage = image; displayedIndex = index; }
+                        if (index >= displayedIndex) { displayedImage = image; displayedIndex = index; displayedSample = elapsed; }
                     }
                     else
                     {
@@ -124,14 +139,17 @@ namespace XiaoGDesktop
                             order.Remove(positions[ready]); order.AddLast(positions[ready]);
                             displayedImage = image;
                             displayedIndex = previous;
+                            displayedSample = (cycle * timeline.Length + previous) / rates[name];
                             break;
                         }
                         if (image == null) image = displayedImage;
+                        SampleTime = displayedSample;
                     }
+                    if (image == null) SampleTime = 0;
                 }
             }
             else image = Load(key, archive, pixels, true);
-            PrepareAhead(timeline, index, loop, rates[name]);
+            PrepareAhead(timeline, index, loop, rates[name], step);
             return true;
         }
 
@@ -177,11 +195,12 @@ namespace XiaoGDesktop
             return image;
         }
 
-        private void PrepareAhead(string[] timeline, int index, bool loop, double rate)
+        private void PrepareAhead(string[] timeline, int index, bool loop, double rate, int step = 1)
         {
             lock (cacheGate)
             {
                 requestedTimeline = timeline; requestedIndex = index; requestedLoop = loop;
+                requestedStep = step;
                 // 按时间覆盖未来画面，长曝光也会提前读到下一个姿势。
                 // 包含当前帧后，总窗口不能超过缓存，否则满窗会互相驱逐并反复读取。
                 requestedAhead = Math.Min(timeline.Length - 1,
@@ -217,7 +236,17 @@ namespace XiaoGDesktop
         // 调用方持有 cacheGate；重复曝光已在缓存中时直接跳过。
         private string NextMissing()
         {
-            // 当前请求优先，随后才读未来画面；尚未准备好也不会让界面去解压。
+            // 先准备接下来几次呈现会用到的采样，再填中间帧。
+            // 60Hz屏幕播放120Hz素材时，不能总被不会显示的奇数帧挤占解压时间。
+            int urgent = Math.Min(requestedAhead, requestedStep * 6);
+            for (int offset = 0; offset <= urgent; offset += requestedStep)
+            {
+                int next = requestedIndex + offset;
+                if (requestedLoop) next %= requestedTimeline.Length;
+                else if (next >= requestedTimeline.Length) break;
+                string key = requestedTimeline[next];
+                if (!cache.ContainsKey(key)) return key;
+            }
             for (int offset = 0; offset <= requestedAhead; offset++)
             {
                 int next = requestedIndex + offset;

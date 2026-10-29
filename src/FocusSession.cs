@@ -14,6 +14,7 @@ namespace XiaoGDesktop
 
         private void StartFocus(int minutes)
         {
+            WakeForInteraction();
             focusMinutes = minutes;
             focusEndsAt = clock.Elapsed.TotalSeconds + minutes * 60;
             focusReminderPending = false;

@@ -51,6 +51,7 @@ $arguments = @(
     (Join-Path $sourceFolder 'ExtraActions.cs')
     (Join-Path $sourceFolder 'ExtraGestureArtwork.cs')
     (Join-Path $sourceFolder 'FocusSession.cs')
+    (Join-Path $sourceFolder 'IdleCompanion.cs')
 )
 $framePack = Join-Path $assetFolder 'animation-frames.zip'
 if (Test-Path -LiteralPath $framePack) { $arguments += '/resource:' + $framePack + ',animation-frames.zip' }

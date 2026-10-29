@@ -96,6 +96,12 @@ namespace XiaoGDesktop
         {
             return idleBlink.Frame(BlinkSequence.Sample(seconds, 0, .08, .08, .10));
         }
+        internal BitmapSource RestEyes(double closure)
+        {
+            return idleBlink.Frame((int)Math.Round(Math.Max(0, Math.Min(1, closure)) * BlinkSequence.HalfSteps));
+        }
+        internal double AnimationTime { get { return animationFrames.SampleTime; } }
+        internal double ExtraArmTime { get { return extraGestures.SampleTime; } }
         internal BitmapSource ExtraBody(string name, int eye) { return extraGestures.Body(name, eye); }
         internal BitmapSource ExtraArm(string name, double seconds) { return extraGestures.Arm(name, seconds); }
 
