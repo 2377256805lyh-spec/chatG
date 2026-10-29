@@ -6,10 +6,15 @@ namespace XiaoGDesktop
 {
     public sealed partial class Companion
     {
+        private enum CompanionMode { Natural, Quiet, Rest }
+        private CompanionMode companionMode;
         private double idleDueAt, glanceStarted = -1, restStarted = -1, wakeStarted = -1;
-        private double glanceAngle, glanceAmount, wakeClosure;
-        private int idleChoice, previousIdleChoice = -1;
-        private bool idlePrepared, idleAction, menuOpen;
+        private double glanceAngle, glanceAmount, wakeClosure, restClosure, eyeClosure, restGlyphAge;
+        private double lastAttentionAt, nextIdleGestureAt;
+        private int idleChoice, previousIdleGesture = -1;
+        private bool idlePrepared, idleAction, menuOpen, glanceRight;
+
+        private CompanionMode AwakeMode { get { return preferences.NaturalIdle ? CompanionMode.Natural : CompanionMode.Quiet; } }
 
         private static double Gentle(double value)
         {
@@ -19,14 +24,18 @@ namespace XiaoGDesktop
 
         private void ScheduleIdle()
         {
-            idleDueAt = clock.Elapsed.TotalSeconds + 22 + random.NextDouble() * 24;
+            double time = clock.Elapsed.TotalSeconds;
+            bool settled = time - lastAttentionAt > 180;
+            idleDueAt = time + (settled ? 32 : 22) + random.NextDouble() * (settled ? 26 : 24);
             idlePrepared = false;
-            // 看四周最常见，避免短时间内重复同一个完整动作。
+            // 完整动作之间留出安静时间；长时间没有互动时更多地轻轻看四周。
+            if (time < nextIdleGestureAt) { idleChoice = 0; return; }
             do
             {
                 double pick = random.NextDouble();
-                idleChoice = pick < .50 ? 0 : pick < .73 ? 1 : pick < .92 ? 2 : 3;
-            } while (idleChoice == previousIdleChoice);
+                idleChoice = settled ? (pick < .70 ? 0 : pick < .80 ? 1 : pick < .96 ? 2 : 3)
+                    : (pick < .50 ? 0 : pick < .73 ? 1 : pick < .92 ? 2 : 3);
+            } while (idleChoice != 0 && idleChoice == previousIdleGesture);
         }
 
         private string IdleAnimation()
@@ -36,56 +45,99 @@ namespace XiaoGDesktop
 
         private void ResetIdleBehavior()
         {
+            companionMode = AwakeMode;
             idleAction = false;
             glanceStarted = restStarted = wakeStarted = -1;
+            eyeClosure = restGlyphAge = 0;
             ScheduleIdle();
         }
 
         private void WakeForInteraction()
         {
-            double time = clock.Elapsed.TotalSeconds;
+            lastAttentionAt = clock.Elapsed.TotalSeconds;
+            ResumeCompanion(AwakeMode);
+        }
+
+        // 所有唤醒入口共用这个状态转换；陪伴模式不能再与休息状态并存。
+        private void ResumeCompanion(CompanionMode mode)
+        {
             if (idleAction) ReturnToIdle();
-            if (restStarted >= 0)
+            if (pendingAction == "rest") pendingAction = null;
+            if (companionMode == CompanionMode.Rest && restStarted >= 0 && wakeStarted < 0)
             {
-                wakeClosure = Gentle((time - restStarted) / .48);
-                restStarted = -1;
-                wakeStarted = time;
-                decorations.Clear();
+                // 从实际已经显示的眼睑位置继续，快速反复切换也不会先睁开再闭上。
+                wakeClosure = eyeClosure;
+                wakeStarted = clock.Elapsed.TotalSeconds;
+                blinkStart = -1;
+                gazeActive = false;
+                gazeStrength = 0;
+                artwork.ResetGaze();
             }
+            companionMode = mode;
             // 保留当前头部朝向，由鼠标注视的阻尼自然接过去。
             glanceStarted = -1;
             ScheduleIdle();
         }
 
+        private void SelectCompanionMode(CompanionMode mode)
+        {
+            pendingClickAt = -1;
+            lastAttentionAt = clock.Elapsed.TotalSeconds;
+            if (mode == CompanionMode.Rest) { BeginRest(); return; }
+            bool changed = preferences.NaturalIdle != (mode == CompanionMode.Natural);
+            preferences.NaturalIdle = mode == CompanionMode.Natural;
+            ResumeCompanion(mode);
+            if (changed) SavePreferences();
+        }
+
         private void BeginRest()
         {
             pendingClickAt = -1;
+            if (companionMode == CompanionMode.Rest && restStarted >= 0) return;
             // 不能把空中的小G瞬间切成闭眼站立；落地后才开始休息。
-            if (action == "jump") { pendingAction = "rest"; return; }
+            if (action == "jump") { companionMode = CompanionMode.Rest; pendingAction = "rest"; return; }
+            double closure = eyeClosure;
             ReturnToIdle();
+            companionMode = CompanionMode.Rest;
+            restClosure = closure;
+            eyeClosure = closure;
             restStarted = clock.Elapsed.TotalSeconds;
+            ShowFrame(artwork.RestEyes(closure));
         }
 
         private bool RenderRest(double time)
         {
-            if (restStarted >= 0)
+            if (companionMode == CompanionMode.Rest && restStarted >= 0)
             {
                 double elapsed = time - restStarted;
-                double amount = Gentle(elapsed / .48);
-                ShowFrame(artwork.RestEyes(amount));
-                decorations.Update(new ExtraActionPose { Name = "rest", Time = elapsed, Strength = amount });
+                double duration = .20 + .32 * (1 - restClosure);
+                ShowRestEyes(restClosure + (1 - restClosure) * Gentle(elapsed / duration));
+                restGlyphAge = elapsed;
+                decorations.Update(new ExtraActionPose { Name = "rest", Time = elapsed, Strength = eyeClosure });
                 return true;
             }
             if (wakeStarted < 0) return false;
-            double phase = (time - wakeStarted) / .24;
+            double phase = (time - wakeStarted) / (.20 + .12 * wakeClosure);
             if (phase < 1)
             {
-                ShowFrame(artwork.RestEyes(wakeClosure * (1 - Gentle(phase))));
+                ShowRestEyes(wakeClosure * (1 - Gentle(phase)));
+                decorations.Update(new ExtraActionPose { Name = "rest", Time = restGlyphAge + Math.Max(0, time - wakeStarted), Strength = eyeClosure });
                 return true;
             }
-            wakeStarted = -1;
+            restStarted = wakeStarted = -1;
+            eyeClosure = restGlyphAge = 0;
+            decorations.Clear();
+            // 明确交还睁眼的中性画面，不能等待下一次转头或眨眼才恢复。
+            ShowFrame(frames[0, 0]);
+            resumeGazeAt = time + .10;
             ScheduleBlink();
             return false;
+        }
+
+        private void ShowRestEyes(double closure)
+        {
+            eyeClosure = Math.Round(Math.Max(0, Math.Min(1, closure)) * BlinkSequence.HalfSteps) / BlinkSequence.HalfSteps;
+            ShowFrame(artwork.RestEyes(eyeClosure));
         }
 
         private void UpdateIdleBehavior(double time)
@@ -94,7 +146,7 @@ namespace XiaoGDesktop
                 || focusEndsAt >= 0 || focusReminderPending;
             if (glanceStarted >= 0)
             {
-                if (busy || gazeActive || !preferences.NaturalIdle)
+                if (busy || gazeActive || companionMode != CompanionMode.Natural)
                 {
                     glanceStarted = -1;
                     ScheduleIdle();
@@ -115,7 +167,7 @@ namespace XiaoGDesktop
                 gazeStrength = glanceAmount * envelope;
                 return;
             }
-            if (!preferences.NaturalIdle) return;
+            if (companionMode != CompanionMode.Natural) return;
             if (busy || gazeActive || gazeStrength > .03 || blinkStart >= 0)
             {
                 // 注意力在用户这里时，不突然开始自己的表演，也不积压待机动作。
@@ -128,78 +180,78 @@ namespace XiaoGDesktop
                 idlePrepared = true;
             }
             if (time < idleDueAt) return;
-            previousIdleChoice = idleChoice;
             if (idleChoice == 0)
             {
                 glanceStarted = time;
                 // 轻轻看看左上或右上，不使用容易夸张的满幅侧转。
-                glanceAngle = random.Next(2) == 0 ? 62 : 298;
-                glanceAmount = .28 + random.NextDouble() * .12;
+                glanceRight = !glanceRight;
+                glanceAngle = glanceRight ? 62 : 298;
+                glanceAmount = .26 + random.NextDouble() * .10;
             }
             else
             {
+                previousIdleGesture = idleChoice;
                 string next = IdleAnimation();
+                nextIdleGestureAt = time + 70;
                 StartAction(next);
                 idleAction = true;
             }
         }
 
-        private void ToggleNaturalIdle()
+        private string CompanionStatus()
         {
-            preferences.NaturalIdle = !preferences.NaturalIdle;
-            if (idleAction) ReturnToIdle();
-            glanceStarted = -1;
-            ScheduleIdle();
-            SavePreferences();
+            if (companionMode == CompanionMode.Rest)
+                return restStarted >= 0 ? "当前：休息，点击即可叫醒" : "当前：休息，落地后小憩";
+            string name = companionMode == CompanionMode.Natural ? "自然陪伴" : "安静陪伴";
+            if (wakeStarted >= 0) return "当前：" + name + "，正在睁眼";
+            if (focusEndsAt >= 0 || focusReminderPending) return "当前：" + name + "，专注期间暂时安静";
+            return "当前：" + name;
         }
 
-        private string RestLabel()
+        private static string ModeLabel(CompanionMode mode)
         {
-            return restStarted >= 0 || pendingAction == "rest" ? "叫醒小G" : "让小G小憩一下";
+            return mode == CompanionMode.Natural ? "自然陪伴（偶尔做小动作）"
+                : mode == CompanionMode.Quiet ? "安静陪伴（眨眼、看着你）" : "休息（闭眼小憩）";
         }
 
-        private void ToggleRest()
+        private MenuItem CreateCompanionMenu()
         {
-            if (restStarted >= 0 || pendingAction == "rest")
-            {
-                if (pendingAction == "rest") pendingAction = null;
-                WakeForInteraction();
-            }
-            else BeginRest();
-        }
-
-        private MenuItem CreateIdleMenu()
-        {
-            MenuItem root = new MenuItem { Header = "待机陪伴" };
-            MenuItem natural = new MenuItem {
-                Header = "自然待机（偶尔做小动作）", IsCheckable = true, IsChecked = preferences.NaturalIdle
-            };
-            natural.Click += delegate { ToggleNaturalIdle(); };
-            root.Items.Add(natural);
-            root.Items.Add(new MenuItem { Header = "专注计时时暂停自发小动作", IsEnabled = false });
+            MenuItem root = new MenuItem { Header = "陪伴模式" };
+            MenuItem status = new MenuItem { Header = CompanionStatus(), IsEnabled = false };
+            root.Items.Add(status);
             root.Items.Add(new Separator());
-            MenuItem rest = new MenuItem { Header = RestLabel() };
-            rest.Click += delegate { ToggleRest(); };
-            root.Items.Add(rest);
-            root.Items.Add(new MenuItem { Header = "小憩时点一下即可叫醒并跳跃", IsEnabled = false });
+            foreach (CompanionMode value in Enum.GetValues(typeof(CompanionMode)))
+            {
+                CompanionMode mode = value;
+                MenuItem item = new MenuItem { Header = ModeLabel(mode), IsCheckable = true, IsChecked = companionMode == mode };
+                item.Click += delegate { SelectCompanionMode(mode); };
+                root.Items.Add(item);
+                root.SubmenuOpened += delegate { item.IsChecked = companionMode == mode; };
+            }
+            root.SubmenuOpened += delegate { status.Header = CompanionStatus(); };
+            root.Items.Add(new Separator());
+            root.Items.Add(CreateFocusMenu());
+            root.Items.Add(new MenuItem { Header = "专注时自动安静，到时唤醒提醒", IsEnabled = false });
             return root;
         }
 
-        private Forms.ToolStripMenuItem CreateIdleTrayMenu()
+        private Forms.ToolStripMenuItem CreateCompanionTrayMenu()
         {
-            Forms.ToolStripMenuItem root = new Forms.ToolStripMenuItem("待机陪伴");
-            Forms.ToolStripMenuItem natural = new Forms.ToolStripMenuItem("自然待机（偶尔做小动作）");
-            Forms.ToolStripMenuItem rest = new Forms.ToolStripMenuItem(RestLabel());
-            natural.Click += delegate { Dispatcher.Invoke(new Action(ToggleNaturalIdle)); };
-            rest.Click += delegate { Dispatcher.Invoke(new Action(ToggleRest)); };
-            root.DropDownItems.Add(natural);
+            Forms.ToolStripMenuItem root = new Forms.ToolStripMenuItem("陪伴模式");
+            Forms.ToolStripMenuItem status = new Forms.ToolStripMenuItem { Text = CompanionStatus(), Enabled = false };
+            root.DropDownItems.Add(status);
             root.DropDownItems.Add(new Forms.ToolStripSeparator());
-            root.DropDownItems.Add(rest);
-            root.DropDownOpening += delegate
+            foreach (CompanionMode value in Enum.GetValues(typeof(CompanionMode)))
             {
-                natural.Checked = preferences.NaturalIdle;
-                rest.Text = RestLabel();
-            };
+                CompanionMode mode = value;
+                Forms.ToolStripMenuItem item = new Forms.ToolStripMenuItem(ModeLabel(mode)) { Checked = companionMode == mode };
+                item.Click += delegate { Dispatcher.Invoke(new Action(delegate { SelectCompanionMode(mode); })); };
+                root.DropDownItems.Add(item);
+                root.DropDownOpening += delegate { item.Checked = companionMode == mode; };
+            }
+            root.DropDownOpening += delegate { status.Text = CompanionStatus(); };
+            root.DropDownItems.Add(new Forms.ToolStripSeparator());
+            root.DropDownItems.Add(CreateFocusTrayMenu());
             return root;
         }
     }

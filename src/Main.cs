@@ -135,6 +135,7 @@ namespace XiaoGDesktop
             ShowActivated = false;
             UseLayoutRounding = true;
             preferences = LoadPreferences();
+            companionMode = AwakeMode;
             Topmost = preferences.Topmost;
             voice = new VoiceClips(phrases.Length, preferences.VoiceVolume);
 
@@ -478,7 +479,13 @@ namespace XiaoGDesktop
         {
             pendingClickAt = -1;
             if (value == "rest") { BeginRest(); return; }
-            if (value == "idle") { ReturnToIdle(); return; }
+            if (value == "idle")
+            {
+                if (action == "idle" && (companionMode == CompanionMode.Rest || wakeStarted >= 0)) WakeForInteraction();
+                else ReturnToIdle();
+                return;
+            }
+            if (pendingAction == "rest") { pendingAction = null; companionMode = AwakeMode; }
             // 跳跃过程中不因连点重新起跳；其他动作可以随时切换。
             if (action == "jump" && value == "jump") return;
             // 空中不突然换成站立姿势；只保留最近一次请求，落地后立即接上。
@@ -546,7 +553,7 @@ namespace XiaoGDesktop
             double dy = point.Y * CellHeight / portrait.Height - 86;
             double rx = gazeActive ? 100 : 82, ry = gazeActive ? 86 : 68;
             bool inside = dx * dx / (rx * rx) + dy * dy / (ry * ry) <= 1;
-            if (inside) { gazeActive = true; lastGazeInside = time; }
+            if (inside) { gazeActive = true; lastGazeInside = lastAttentionAt = time; }
             else if (time - lastGazeInside > 0.20) gazeActive = false;
             double target = gazeActive && dx * dx + dy * dy > 64 ? 1 : 0;
             gazeStrength += (target - gazeStrength) * (1 - Math.Exp(-delta / 0.11));
@@ -692,10 +699,19 @@ namespace XiaoGDesktop
                 {
                     double phase = time - blinkStart;
                     if (gazeStrength > 0.08) { blinkStart = -1; ScheduleBlink(); }
-                    else if (phase < 0.26) ShowFrame(artwork.BlinkAt(phase));
+                    else if (phase < 0.26)
+                    {
+                        ShowFrame(artwork.BlinkAt(phase));
+                        int eye = BlinkSequence.Sample(phase, 0, .08, .08, .10);
+                        eyeClosure = Math.Min(eye, BlinkSequence.HalfSteps * 2 - eye) / (double)BlinkSequence.HalfSteps;
+                    }
                     else { blinkStart = -1; ScheduleBlink(); }
                 }
-                if (blinkStart < 0) ShowFrame(artwork.Gaze(gaze, (int)Math.Round(gazeStrength * FrameComposer.StrengthSteps)));
+                if (blinkStart < 0)
+                {
+                    eyeClosure = 0;
+                    ShowFrame(artwork.Gaze(gaze, (int)Math.Round(gazeStrength * FrameComposer.StrengthSteps)));
+                }
             }
         }
 
@@ -810,8 +826,7 @@ namespace XiaoGDesktop
             MenuItem linked = AddMenuItem(menu, "随桌面 Codex 启动", ToggleCodexLink);
             linked.IsCheckable = true;
             linked.IsChecked = CodexLink.Enabled;
-            menu.Items.Add(CreateFocusMenu());
-            menu.Items.Add(CreateIdleMenu());
+            menu.Items.Add(CreateCompanionMenu());
             menu.Items.Add(new Separator());
             MenuItem actions = new MenuItem { Header = "播放动作" };
             string[] names = { "跳一下", "踮踮脚", "等等你", "想一想", "检查一下", "小沮丧", "摇摇头", "困困打盹", "灵光一闪", "回到待机" };
@@ -848,8 +863,7 @@ namespace XiaoGDesktop
             Forms.ContextMenuStrip menu = new Forms.ContextMenuStrip();
             menu.Items.Add("把小G移回主屏", null, delegate { Dispatcher.Invoke(new Action(ReturnHome)); });
             menu.Items.Add("全部设置和动作…", null, delegate { Dispatcher.BeginInvoke(new Action(OpenMenu)); });
-            menu.Items.Add(CreateFocusTrayMenu());
-            menu.Items.Add(CreateIdleTrayMenu());
+            menu.Items.Add(CreateCompanionTrayMenu());
             menu.Opening += delegate { menuOpen = true; pendingClickAt = -1; };
             menu.Closed += delegate { menuOpen = false; ScheduleIdle(); };
             menu.Items.Add(new Forms.ToolStripSeparator());

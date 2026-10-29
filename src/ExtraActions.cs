@@ -52,7 +52,25 @@ namespace XiaoGDesktop
         {
             if (pose.Name == null) return;
             double t = pose.Time, amount = pose.Strength;
-            if (pose.Name == "sleepy" || pose.Name == "rest")
+            if (pose.Name == "rest")
+            {
+                // 休息用慢慢浮起的两枚z，独立于揉眼动作的较短节奏。
+                for (int i = 0; i < 2; i++)
+                {
+                    double phase = t - .65 - i * 1.35;
+                    if (phase < 0) continue;
+                    double life = phase % 4.8;
+                    double opacity = Smooth(life / .85) * Smooth((4.8 - life) / 1.2) * amount;
+                    double x = 146 + i * 8 + Math.Sin(life * 1.1) * 1.6;
+                    double y = 78 - i * 9 - life * 4.5;
+                    dc.PushOpacity(opacity * .72);
+                    FormattedText letter = new FormattedText("z", CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface("Georgia"), 10 + i * 2, Lilac, 1.0);
+                    dc.DrawText(letter, new Point(x, y));
+                    dc.Pop();
+                }
+            }
+            else if (pose.Name == "sleepy")
             {
                 for (int i = 0; i < 3; i++)
                 {

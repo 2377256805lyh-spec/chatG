@@ -37,6 +37,7 @@ namespace XiaoGDesktop
             focusEndsAt = -1;
             focusReminderPending = false;
             if (focusTimer != null) focusTimer.Stop();
+            ScheduleIdle();
         }
 
         private void UpdateFocus(double time)
@@ -51,6 +52,7 @@ namespace XiaoGDesktop
             // 等已有语录说完再提醒；不改变语录、声音开关，也不重复打断用户。
             focusReminderPending = false;
             if (focusTimer != null) focusTimer.Stop();
+            WakeForInteraction();
             if (preferences.Speech) SpeakPhrase(7);
             else if (tray != null)
                 tray.ShowBalloonTip(5000, "小G · 专注完成",
@@ -67,8 +69,9 @@ namespace XiaoGDesktop
 
         private MenuItem CreateFocusMenu()
         {
-            MenuItem root = new MenuItem { Header = "专注陪伴" };
-            root.Items.Add(new MenuItem { Header = FocusStatus(), IsEnabled = false });
+            MenuItem root = new MenuItem { Header = "专注计时" };
+            MenuItem status = new MenuItem { Header = FocusStatus(), IsEnabled = false };
+            root.Items.Add(status);
             root.Items.Add(new Separator());
             foreach (int duration in new int[] { 25, 50 })
             {
@@ -77,6 +80,9 @@ namespace XiaoGDesktop
                     Header = (focusEndsAt >= 0 ? "重新开始 " : "开始 ") + minutes + " 分钟"
                 };
                 start.Click += delegate { StartFocus(minutes); };
+                root.SubmenuOpened += delegate {
+                    start.Header = (focusEndsAt >= 0 ? "重新开始 " : "开始 ") + minutes + " 分钟";
+                };
                 root.Items.Add(start);
             }
             MenuItem stop = new MenuItem {
@@ -84,12 +90,16 @@ namespace XiaoGDesktop
             };
             stop.Click += delegate { EndFocus(); };
             root.Items.Add(stop);
+            root.SubmenuOpened += delegate {
+                status.Header = FocusStatus();
+                stop.IsEnabled = focusEndsAt >= 0 || focusReminderPending;
+            };
             return root;
         }
 
         private Forms.ToolStripMenuItem CreateFocusTrayMenu()
         {
-            Forms.ToolStripMenuItem root = new Forms.ToolStripMenuItem("专注陪伴");
+            Forms.ToolStripMenuItem root = new Forms.ToolStripMenuItem("专注计时");
             Forms.ToolStripMenuItem status = new Forms.ToolStripMenuItem { Enabled = false };
             Forms.ToolStripMenuItem start25 = new Forms.ToolStripMenuItem();
             Forms.ToolStripMenuItem start50 = new Forms.ToolStripMenuItem();

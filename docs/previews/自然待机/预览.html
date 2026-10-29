@@ -2,20 +2,21 @@
 <html lang="zh-CN">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>小G · 自然待机</title>
+<title>小G · 陪伴与休息</title>
 <style>
 body{margin:0;background:#f5f2f9;color:#50435d;font:16px/1.8 system-ui,"Microsoft YaHei",sans-serif}
 main{max-width:920px;margin:40px auto;padding:0 24px}h1{font-size:28px}p{max-width:800px}
-.clips{display:flex;flex-wrap:wrap;gap:24px}.card{flex:1;min-width:250px;padding:20px;background:#fffcff;border:1px solid #e2d8ed;border-radius:20px;text-align:center}
+.clips{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}.card{padding:20px;background:#fffcff;border:1px solid #e2d8ed;border-radius:20px;text-align:center}
 img{width:288px;max-width:100%;height:auto}h2{font-size:19px;margin:0}small{color:#84728f}
 </style>
 <main>
-<h1>小G · 自然待机</h1>
-<p>自然待机时，偶尔轻轻看看四周、踮踮脚、揉揉眼或想一想。你靠近脑袋、打开菜单或正在说话时，她会推迟自己的小动作；专注计时期间暂停自发动作。</p>
+<h1>小G · 陪伴与休息</h1>
+<p>右键 → 陪伴模式，统一选择自然陪伴、安静陪伴或休息。自然陪伴偶尔看看四周、踮脚、揉眼或思考；安静陪伴保留眨眼和注视；休息缓缓闭眼。专注计时也在同一处，计时期间暂停自发动作，到时唤醒提醒。</p>
 <div class="clips">
 <article class="card"><h2>看看四周</h2><img src="看看四周.webp" alt="小G轻轻看向一边，再缓缓回正"><p>轻轻转向、稍作停留，再回正。</p></article>
-<article class="card"><h2>小憩与叫醒</h2><img src="小憩与叫醒.webp" alt="小G慢慢闭眼，淡紫色的z飘起，随后睁眼"><p>右键 → 待机陪伴 → 让小G小憩一下。<br>点击、拖动或菜单都可以叫醒。</p></article>
+<article class="card"><h2>休息 → 自然陪伴</h2><img src="小憩与叫醒.webp" alt="小G慢慢闭眼，淡紫色的z缓缓飘起，切换陪伴后睁眼"><p>切回陪伴会渐渐睁眼，恢复眨眼与注视。</p></article>
+<article class="card"><h2>半闭眼时反复改选</h2><img src="模式切换.webp" alt="半闭眼时切回陪伴、改为休息再切陪伴，眼睑连续过渡"><p>从当前眼睛的位置接着开合，不闪回闭眼图。</p></article>
 </div>
-<p><small>这里是用程序实际绘图方法导出的30次/秒循环预览；实际待机小动作间隔约22～46秒，小憩会持续到你叫醒。预览中缩短了间隔与休息时间。</small></p>
+<p><small>程序实际模式切换与绘图方法的30次/秒预览，缩短了等待时间。平时轻动作间隔约22～46秒，完整小动作至少间隔70秒；久未互动时更安静。休息持续到你叫醒，退出后不保持闭眼。</small></p>
 </main>
 </html>
